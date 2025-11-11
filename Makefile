@@ -10,11 +10,11 @@ include config.env
 DOCKER_IMAGE := minarch-cores-builder
 DOCKER_RUN := docker run --rm -v $(PWD):/workspace $(DOCKER_IMAGE)
 
-# Recipe paths
-RECIPE_ARMV7 := libretro-super/recipes/linux/cores-linux-arm7neonhf
-RECIPE_AARCH64 := recipes/linux/cores-linux-aarch64
-RECIPE_ARMV7_PATCHED := recipes/linux/cores-linux-arm7neonhf-patched
-RECIPE_AARCH64_PATCHED := recipes/linux/cores-linux-aarch64-patched
+# Recipe paths (relative to libretro-super/ directory for official, ../ for custom)
+RECIPE_ARMV7 := recipes/linux/cores-linux-arm7neonhf
+RECIPE_AARCH64 := ../recipes/linux/cores-linux-aarch64
+RECIPE_ARMV7_PATCHED := ../recipes/linux/cores-linux-arm7neonhf-patched
+RECIPE_AARCH64_PATCHED := ../recipes/linux/cores-linux-aarch64-patched
 
 # Build options
 FORCE ?= NO   # Set to YES to force rebuild all cores, NO for incremental builds
@@ -120,7 +120,7 @@ build-arm7neonhf-patched: docker-build apply-patches
 	$(DOCKER_RUN) bash -c "cd libretro-super && \
 		JOBS=$(JOBS) \
 		FORCE=$(FORCE) \
-		./libretro-buildbot-recipe.sh ../$(RECIPE_ARMV7_PATCHED) arm7neonhf-patched"
+		./libretro-buildbot-recipe.sh $(RECIPE_ARMV7_PATCHED) arm7neonhf-patched"
 	@echo "  → Copying patched cores to build/arm7neonhf-patched/"
 	@cp libretro-super/dist/unix/*_libretro.so build/arm7neonhf-patched/ 2>/dev/null || true
 	@echo "✓ arm7neonhf patched cores built: $$(ls build/arm7neonhf-patched/*.so 2>/dev/null | wc -l | xargs) cores"
@@ -136,7 +136,7 @@ build-aarch64-patched: docker-build apply-patches
 	$(DOCKER_RUN) bash -c "cd libretro-super && \
 		JOBS=$(JOBS) \
 		FORCE=$(FORCE) \
-		./libretro-buildbot-recipe.sh ../$(RECIPE_AARCH64_PATCHED) aarch64-patched"
+		./libretro-buildbot-recipe.sh $(RECIPE_AARCH64_PATCHED) aarch64-patched"
 	@echo "  → Copying patched cores to build/aarch64-patched/"
 	@cp libretro-super/dist/unix/*_libretro.so build/aarch64-patched/ 2>/dev/null || true
 	@echo "✓ aarch64 patched cores built: $$(ls build/aarch64-patched/*.so 2>/dev/null | wc -l | xargs) cores"
