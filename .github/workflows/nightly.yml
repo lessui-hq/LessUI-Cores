@@ -4,7 +4,16 @@ on:
   schedule:
     # Run at 2 AM UTC every day
     - cron: '0 2 * * *'
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild all cores (YES) or incremental build (NO)'
+        required: false
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'YES'
 
 jobs:
   build:
@@ -30,19 +39,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Cache libretro core repositories
+      - name: Cache libretro repositories and builds
         uses: actions/cache@v4
         with:
           path: |
             libretro-super/libretro-*/
-          key: libretro-cores-${{ github.run_id }}
+            build/
+          key: libretro-builds-${{ github.run_id }}
           restore-keys: |
-            libretro-cores-
+            libretro-builds-
 
-      - name: Build all packages (incremental)
+      - name: Build all packages
         run: make package-all
         env:
           JOBS: 4  # GitHub runners have 4 cores
+          FORCE: ${{ inputs.force_rebuild || 'NO' }}
 
       - name: Generate build info
         id: build_info
