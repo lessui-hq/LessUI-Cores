@@ -19,6 +19,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 240  # 4 hours total
+    permissions:
+      contents: write  # Required to create releases and push tags
 
     steps:
       - name: Checkout repository
