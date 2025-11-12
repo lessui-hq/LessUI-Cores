@@ -4,7 +4,7 @@ Build system for libretro cores targeting ARM devices.
 
 ## Overview
 
-Builds libretro emulator cores for ARM-based retro handhelds using official libretro recipes via Docker. Supports both clean builds (unmodified cores) and patched builds (minarch customizations).
+Builds libretro emulator cores for ARM-based retro handhelds using official libretro recipes via Docker. Supports both clean builds (unmodified cores) and custom builds (minarch customizations).
 
 ## Prerequisites
 
@@ -31,21 +31,21 @@ make package-all
 
 ## Build Targets
 
-### Clean Builds (Official Unmodified Cores)
-- `make build-arm7neonhf` - Build ~134 32-bit ARM cores
-- `make build-aarch64` - Build ~137 64-bit ARM cores
+### Clean Builds (Our Recipes + fake08/race/supafaust)
+- `make build-arm7neonhf` - Build 32-bit ARM cores
+- `make build-aarch64` - Build 64-bit ARM cores
 - `make build-all` - Build both architectures
 
-### Patched Builds (minarch Customizations)
-- `make build-arm7neonhf-patched` - Build patched 32-bit cores
-- `make build-aarch64-patched` - Build patched 64-bit cores
-- `make build-all-patched` - Build all clean + patched
+### Custom Builds (minarch Customizations)
+- `make build-arm7neonhf-custom` - Build custom 32-bit cores
+- `make build-aarch64-custom` - Build custom 64-bit cores
+- `make build-all-custom` - Build all clean + custom
 
 ### Packaging (Distribution Zips)
 - `make package-arm7neonhf` - Create `linux-arm7neonhf.zip`
 - `make package-aarch64` - Create `linux-aarch64.zip`
-- `make package-arm7neonhf-patched` - Create `linux-arm7neonhf-patched.zip`
-- `make package-aarch64-patched` - Create `linux-aarch64-patched.zip`
+- `make package-arm7neonhf-custom` - Create `linux-arm7neonhf-custom.zip`
+- `make package-aarch64-custom` - Create `linux-aarch64-custom.zip`
 - `make package-all` - Create all 4 zip files
 
 ### Utilities
@@ -57,22 +57,29 @@ make package-all
 Built cores are placed in:
 - `build/arm7neonhf/` - Clean 32-bit ARM cores
 - `build/aarch64/` - Clean 64-bit ARM cores
-- `build/arm7neonhf-patched/` - Patched 32-bit ARM cores
-- `build/aarch64-patched/` - Patched 64-bit ARM cores
+- `build/arm7neonhf-custom/` - Custom 32-bit ARM cores
+- `build/aarch64-custom/` - Custom 64-bit ARM cores
 
 Distribution zips are created in the project root.
 
 ## Configuration
 
 Edit `config.env`:
-- `JOBS` - Parallel build jobs (default: 10)
-- `PATCHED_CORES` - Space-separated list of cores to patch
+- `JOBS` - Parallel build jobs (default: 8)
+- `BUILD_FIX_CORES` - Cores with build fix patches (apply to all builds)
+- `CUSTOM_CORES` - Cores with custom behavior patches (custom builds only)
 
 ## Adding Patches
 
-1. Create patch file: `patches/<corename>-<description>.patch`
-2. Add core to `PATCHED_CORES` in `config.env`
-3. Run `make build-arm7neonhf-patched` or `make build-aarch64-patched`
+### Build Fix Patches (upstream bugs)
+1. Create patch file: `patches/build/<corename>-<description>.patch`
+2. Add core to `BUILD_FIX_CORES` in `config.env`
+3. Patch applies to ALL builds automatically
+
+### Custom Behavior Patches (minarch-specific)
+1. Create patch file: `patches/custom/<corename>-<description>.patch`
+2. Add core to `CUSTOM_CORES` in `config.env`
+3. Run `make build-arm7neonhf-custom` or `make build-aarch64-custom`
 
 ## Architecture Support
 
@@ -90,10 +97,11 @@ minarch-cores/
 ├── config.env             # Build configuration
 ├── recipes/               # Custom libretro recipes
 │   └── linux/
-│       ├── cores-linux-aarch64
-│       ├── cores-linux-aarch64-patched
-│       └── cores-linux-arm7neonhf-patched
-├── patches/               # minarch-specific patches
+│       ├── cores-linux-aarch64-custom
+│       └── cores-linux-arm7neonhf-custom
+├── patches/               # Patch files
+│   ├── build/             # Build fix patches (all builds)
+│   └── custom/            # Custom behavior patches (custom builds only)
 ├── libretro-super/        # Official libretro build system (submodule)
 └── build/                 # Build output (gitignored)
 ```

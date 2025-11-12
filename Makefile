@@ -1,7 +1,7 @@
 # minarch-cores Makefile
 # Builds libretro cores using official recipes via Docker
 
-.PHONY: help build-arm7neonhf build-aarch64 build-arm7neonhf-patched build-aarch64-patched build-all build-all-patched apply-patches-docker clean-patches-docker package-arm7neonhf package-aarch64 package-arm7neonhf-patched package-aarch64-patched package-all clean shell
+.PHONY: help build-arm7neonhf build-aarch64 build-arm7neonhf-custom build-aarch64-custom build-all build-all-custom apply-build-fixes-docker apply-custom-patches-docker clean-patches-docker package-arm7neonhf package-aarch64 package-arm7neonhf-custom package-aarch64-custom package-all clean shell
 
 # Include configuration
 include config.env
@@ -10,46 +10,45 @@ include config.env
 DOCKER_IMAGE := minarch-cores-builder
 DOCKER_RUN := docker run --rm -v $(PWD):/workspace $(DOCKER_IMAGE)
 
-# Recipe paths (relative to libretro-super/ directory for official, ../ for custom)
-RECIPE_ARMV7 := recipes/linux/cores-linux-arm7neonhf
+# Recipe paths (../ means relative to libretro-super/ directory, pointing to our repo)
+RECIPE_ARMV7 := ../recipes/linux/cores-linux-arm7neonhf
 RECIPE_AARCH64 := ../recipes/linux/cores-linux-aarch64
-RECIPE_ARMV7_PATCHED := ../recipes/linux/cores-linux-arm7neonhf-patched
-RECIPE_AARCH64_PATCHED := ../recipes/linux/cores-linux-aarch64-patched
+RECIPE_ARMV7_CUSTOM := ../recipes/linux/cores-linux-arm7neonhf-custom
+RECIPE_AARCH64_CUSTOM := ../recipes/linux/cores-linux-aarch64-custom
 
 # Build options
-FORCE ?= NO   # Set to YES to force rebuild all cores, NO for incremental builds
+FORCE := YES  # Always do full rebuilds for reliability and reproducibility
 JOBS ?= 8     # Parallel build jobs (override in config.env or via JOBS=N make ...)
 
 help:
 	@echo "minarch-cores - Local Build System"
 	@echo ""
-	@echo "Clean Builds (unmodified cores via official recipes):"
-	@echo "  make build-arm7neonhf         Build ~134 arm7neonhf cores"
-	@echo "  make build-aarch64            Build ~137 aarch64 cores"
+	@echo "Clean Builds (our recipes + fake08/race/supafaust):"
+	@echo "  make build-arm7neonhf         Build arm7neonhf cores"
+	@echo "  make build-aarch64            Build aarch64 cores"
 	@echo "  make build-all                Build both architectures"
 	@echo ""
-	@echo "Patched Builds (minarch customizations):"
-	@echo "  make build-arm7neonhf-patched Build patched arm7neonhf cores"
-	@echo "  make build-aarch64-patched    Build patched aarch64 cores"
-	@echo "  make build-all-patched        Build all clean + patched"
+	@echo "Custom Builds (minarch customizations):"
+	@echo "  make build-arm7neonhf-custom Build custom arm7neonhf cores"
+	@echo "  make build-aarch64-custom    Build custom aarch64 cores"
+	@echo "  make build-all-custom        Build all clean + custom"
 	@echo ""
 	@echo "Packaging (create distribution zips):"
 	@echo "  make package-arm7neonhf         Create linux-arm7neonhf.zip"
 	@echo "  make package-aarch64            Create linux-aarch64.zip"
-	@echo "  make package-arm7neonhf-patched Create linux-arm7neonhf-patched.zip"
-	@echo "  make package-aarch64-patched    Create linux-aarch64-patched.zip"
+	@echo "  make package-arm7neonhf-custom Create linux-arm7neonhf-custom.zip"
+	@echo "  make package-aarch64-custom    Create linux-aarch64-custom.zip"
 	@echo "  make package-all                Create all 4 zip files"
 	@echo ""
 	@echo "Build Options:"
-	@echo "  FORCE=YES make build-*     Force rebuild all cores (default: NO)"
 	@echo "  JOBS=N make build-*        Parallel jobs (default: 8)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make clean                 Remove build artifacts"
 	@echo "  make shell                 Open shell in build container"
 	@echo ""
-	@echo "Note: Incremental builds only rebuild changed cores (much faster!)"
-	@echo "      First build takes 1-3 hours, subsequent builds typically minutes"
+	@echo "Note: All builds are full rebuilds for reliability and reproducibility."
+	@echo "      Builds take 1-3 hours. GitHub Actions cache speeds up repo clones."
 
 # Build Docker image (only needed once)
 docker-build:
@@ -57,90 +56,89 @@ docker-build:
 	docker build -t $(DOCKER_IMAGE) .
 	@echo "✓ Docker image ready"
 
-# Apply patches (runs inside Docker to avoid permission issues)
-apply-patches-docker:
-	@echo "=== Applying minarch patches (inside Docker) ==="
-	$(DOCKER_RUN) bash -c "for core in $(PATCHED_CORES); do \
+# Apply build fix patches (runs inside Docker to avoid permission issues)
+apply-build-fixes-docker:
+	@echo "=== Applying build fix patches (inside Docker) ==="
+	$(DOCKER_RUN) bash -c "for core in $(BUILD_FIX_CORES); do \
 		echo \"  → Cleaning and patching \$$core\"; \
 		cd libretro-super/libretro-\$$core && git checkout . && git clean -fd && cd ../..; \
-		patch_file=\$$(ls patches/\$$core-*.patch 2>/dev/null | head -1); \
+		patch_file=\$$(ls patches/build/\$$core-*.patch 2>/dev/null | head -1); \
 		if [ -n \"\$$patch_file\" ]; then \
 			echo \"    Applying \$$patch_file\"; \
 			cd libretro-super/libretro-\$$core && patch -p1 < ../../\$$patch_file && cd ../..; \
 		fi; \
 	done"
-	@echo "✓ Patches applied"
+	@echo "✓ Build fix patches applied"
 
-# Clean patches (runs inside Docker to avoid permission issues)
+# Apply custom behavior patches (runs inside Docker to avoid permission issues)
+apply-custom-patches-docker:
+	@echo "=== Applying custom behavior patches (inside Docker) ==="
+	$(DOCKER_RUN) bash -c "for core in $(CUSTOM_CORES); do \
+		echo \"  → Cleaning and patching \$$core\"; \
+		cd libretro-super/libretro-\$$core && git checkout . && git clean -fd && cd ../..; \
+		patch_file=\$$(ls patches/custom/\$$core-*.patch 2>/dev/null | head -1); \
+		if [ -n \"\$$patch_file\" ]; then \
+			echo \"    Applying \$$patch_file\"; \
+			cd libretro-super/libretro-\$$core && patch -p1 < ../../\$$patch_file && cd ../..; \
+		fi; \
+	done"
+	@echo "✓ Custom patches applied"
+
+# Clean all patches (runs inside Docker to avoid permission issues)
 clean-patches-docker:
-	@echo "=== Reverting patches (inside Docker) ==="
-	$(DOCKER_RUN) bash -c "for core in $(PATCHED_CORES); do \
+	@echo "=== Reverting all patches (inside Docker) ==="
+	$(DOCKER_RUN) bash -c "for core in $(BUILD_FIX_CORES) $(CUSTOM_CORES); do \
 		echo \"  → Reverting \$$core\"; \
 		cd libretro-super/libretro-\$$core && git checkout . && git clean -fd && cd ../..; \
 	done"
 	@echo "✓ Patches reverted"
 
-# Build 32-bit ARM cores using official recipe
+# Internal build function - use specific targets below
+# Usage: $(call build-cores,arch-name,recipe-path,build-name,extra-patches)
+define build-cores
+	@echo "=== Building $(1) cores ==="
+	@echo "Recipe: $(2)"
+	@test -z "$(4)" || echo "Custom cores: $(CUSTOM_CORES)"
+	@echo "This will take 1-3 hours depending on your system..."
+	@echo "  → Cleaning output directory for fresh build..."
+	@rm -rf build/$(1)
+	@mkdir -p build/$(1)
+	@echo "  → Fetching/updating repositories..."
+	$(DOCKER_RUN) bash -c "cd libretro-super && \
+		JOBS=$(JOBS) \
+		FORCE=$(FORCE) \
+		./libretro-fetch.sh $(2)"
+	@echo "  → Cleaning for full rebuild..."
+	$(DOCKER_RUN) bash -c "cd libretro-super && rm -rf dist/unix/*_libretro.so"
+	$(MAKE) apply-build-fixes-docker
+	$(if $(4),$(MAKE) apply-custom-patches-docker)
+	@echo "  → Building cores..."
+	$(DOCKER_RUN) bash -c "cd libretro-super && \
+		JOBS=$(JOBS) \
+		FORCE=$(FORCE) \
+		./libretro-build.sh $(2) $(3)"
+	@echo "  → Copying cores to build/$(1)/"
+	@cp libretro-super/dist/unix/*_libretro.so build/$(1)/ 2>/dev/null || true
+	@echo "✓ $(1) cores built: $$(ls build/$(1)/*.so 2>/dev/null | wc -l | xargs) cores"
+	@test "$(1)" = "arm7neonhf" -o "$(1)" = "aarch64" && du -sh build/$(1) 2>/dev/null || true
+	$(MAKE) clean-patches-docker
+endef
+
+# Build 32-bit ARM cores
 build-arm7neonhf: docker-build
-	@echo "=== Building arm7neonhf cores via official recipe ==="
-	@echo "Recipe: $(RECIPE_ARMV7) (134 YES cores)"
-	@echo "This will take 1-3 hours depending on your system..."
-	@mkdir -p build/arm7neonhf
-	$(DOCKER_RUN) bash -c "cd libretro-super && \
-		JOBS=$(JOBS) \
-		FORCE=$(FORCE) \
-		./libretro-buildbot-recipe.sh $(RECIPE_ARMV7) arm7neonhf-build"
-	@echo "  → Copying cores to build/arm7neonhf/"
-	@cp libretro-super/dist/unix/*_libretro.so build/arm7neonhf/ 2>/dev/null || true
-	@echo "✓ arm7neonhf cores built: $$(ls build/arm7neonhf/*.so 2>/dev/null | wc -l | xargs) cores"
-	@du -sh build/arm7neonhf 2>/dev/null || true
+	$(call build-cores,arm7neonhf,$(RECIPE_ARMV7),arm7neonhf-build)
 
-# Build 64-bit ARM cores using official recipe
+# Build 64-bit ARM cores
 build-aarch64: docker-build
-	@echo "=== Building aarch64 cores via official recipe ==="
-	@echo "Recipe: $(RECIPE_AARCH64) (137 YES cores)"
-	@echo "This will take 1-3 hours depending on your system..."
-	@mkdir -p build/aarch64
-	$(DOCKER_RUN) bash -c "cd libretro-super && \
-		JOBS=$(JOBS) \
-		FORCE=$(FORCE) \
-		./libretro-buildbot-recipe.sh $(RECIPE_AARCH64) aarch64-build"
-	@echo "  → Copying cores to build/aarch64/"
-	@cp libretro-super/dist/unix/*_libretro.so build/aarch64/ 2>/dev/null || true
-	@echo "✓ aarch64 cores built: $$(ls build/aarch64/*.so 2>/dev/null | wc -l | xargs) cores"
-	@du -sh build/aarch64 2>/dev/null || true
+	$(call build-cores,aarch64,$(RECIPE_AARCH64),aarch64-build)
 
-# Build 32-bit ARM patched cores
-build-arm7neonhf-patched: docker-build apply-patches-docker
-	@echo "=== Building arm7neonhf patched cores ==="
-	@echo "Recipe: $(RECIPE_ARMV7_PATCHED)"
-	@echo "Patched cores: $(PATCHED_CORES)"
-	@mkdir -p build/arm7neonhf-patched
-	@rm -rf build/arm7neonhf-patched/*
-	$(DOCKER_RUN) bash -c "cd libretro-super && \
-		JOBS=$(JOBS) \
-		FORCE=$(FORCE) \
-		./libretro-buildbot-recipe.sh $(RECIPE_ARMV7_PATCHED) arm7neonhf-patched"
-	@echo "  → Copying patched cores to build/arm7neonhf-patched/"
-	@cp libretro-super/dist/unix/*_libretro.so build/arm7neonhf-patched/ 2>/dev/null || true
-	@echo "✓ arm7neonhf patched cores built: $$(ls build/arm7neonhf-patched/*.so 2>/dev/null | wc -l | xargs) cores"
-	$(MAKE) clean-patches-docker
+# Build 32-bit ARM custom cores
+build-arm7neonhf-custom: docker-build
+	$(call build-cores,arm7neonhf-custom,$(RECIPE_ARMV7_CUSTOM),arm7neonhf-custom,yes)
 
-# Build 64-bit ARM patched cores
-build-aarch64-patched: docker-build apply-patches-docker
-	@echo "=== Building aarch64 patched cores ==="
-	@echo "Recipe: $(RECIPE_AARCH64_PATCHED)"
-	@echo "Patched cores: $(PATCHED_CORES)"
-	@mkdir -p build/aarch64-patched
-	@rm -rf build/aarch64-patched/*
-	$(DOCKER_RUN) bash -c "cd libretro-super && \
-		JOBS=$(JOBS) \
-		FORCE=$(FORCE) \
-		./libretro-buildbot-recipe.sh $(RECIPE_AARCH64_PATCHED) aarch64-patched"
-	@echo "  → Copying patched cores to build/aarch64-patched/"
-	@cp libretro-super/dist/unix/*_libretro.so build/aarch64-patched/ 2>/dev/null || true
-	@echo "✓ aarch64 patched cores built: $$(ls build/aarch64-patched/*.so 2>/dev/null | wc -l | xargs) cores"
-	$(MAKE) clean-patches-docker
+# Build 64-bit ARM custom cores
+build-aarch64-custom: docker-build
+	$(call build-cores,aarch64-custom,$(RECIPE_AARCH64_CUSTOM),aarch64-custom,yes)
 
 # Build both architectures (clean only)
 build-all: build-arm7neonhf build-aarch64
@@ -152,47 +150,44 @@ build-all: build-arm7neonhf build-aarch64
 	@echo "Total size:"
 	@du -sh build/arm7neonhf build/aarch64 2>/dev/null || true
 
-# Build all: clean + patched for both architectures
-build-all-patched: build-arm7neonhf build-aarch64 build-arm7neonhf-patched build-aarch64-patched
+# Build all: clean + custom for both architectures
+build-all-custom: build-arm7neonhf build-aarch64 build-arm7neonhf-custom build-aarch64-custom
 	@echo ""
 	@echo "=== Complete Build Summary ==="
 	@echo "Clean builds:"
 	@echo "  arm7neonhf cores: $$(ls build/arm7neonhf/*.so 2>/dev/null | wc -l | xargs)"
 	@echo "  aarch64 cores:    $$(ls build/aarch64/*.so 2>/dev/null | wc -l | xargs)"
 	@echo ""
-	@echo "Patched builds:"
-	@echo "  arm7neonhf cores: $$(ls build/arm7neonhf-patched/*.so 2>/dev/null | wc -l | xargs)"
-	@echo "  aarch64 cores:    $$(ls build/aarch64-patched/*.so 2>/dev/null | wc -l | xargs)"
+	@echo "Custom builds:"
+	@echo "  arm7neonhf cores: $$(ls build/arm7neonhf-custom/*.so 2>/dev/null | wc -l | xargs)"
+	@echo "  aarch64 cores:    $$(ls build/aarch64-custom/*.so 2>/dev/null | wc -l | xargs)"
 	@echo ""
 	@echo "Total size:"
 	@du -sh build/* 2>/dev/null || true
 
-# Package arm7neonhf cores into zip file
+# Internal packaging function
+# Usage: $(call package-cores,arch-name)
+define package-cores
+	@echo "=== Packaging $(1) cores ==="
+	@cd build/$(1) && zip -q ../../linux-$(1).zip *.so
+	@echo "✓ Created linux-$(1).zip ($$(ls -lh linux-$(1).zip | awk '{print $$5}'))"
+endef
+
+# Package targets
 package-arm7neonhf: build-arm7neonhf
-	@echo "=== Packaging arm7neonhf cores ==="
-	@cd build/arm7neonhf && zip -q ../../linux-arm7neonhf.zip *.so
-	@echo "✓ Created linux-arm7neonhf.zip ($$(ls -lh linux-arm7neonhf.zip | awk '{print $$5}'))"
+	$(call package-cores,arm7neonhf)
 
-# Package aarch64 cores into zip file
 package-aarch64: build-aarch64
-	@echo "=== Packaging aarch64 cores ==="
-	@cd build/aarch64 && zip -q ../../linux-aarch64.zip *.so
-	@echo "✓ Created linux-aarch64.zip ($$(ls -lh linux-aarch64.zip | awk '{print $$5}'))"
+	$(call package-cores,aarch64)
 
-# Package arm7neonhf patched cores into zip file
-package-arm7neonhf-patched: build-arm7neonhf-patched
-	@echo "=== Packaging arm7neonhf patched cores ==="
-	@cd build/arm7neonhf-patched && zip -q ../../linux-arm7neonhf-patched.zip *.so
-	@echo "✓ Created linux-arm7neonhf-patched.zip ($$(ls -lh linux-arm7neonhf-patched.zip | awk '{print $$5}'))"
+package-arm7neonhf-custom: build-arm7neonhf-custom
+	$(call package-cores,arm7neonhf-custom)
 
-# Package aarch64 patched cores into zip file
-package-aarch64-patched: build-aarch64-patched
-	@echo "=== Packaging aarch64 patched cores ==="
-	@cd build/aarch64-patched && zip -q ../../linux-aarch64-patched.zip *.so
-	@echo "✓ Created linux-aarch64-patched.zip ($$(ls -lh linux-aarch64-patched.zip | awk '{print $$5}'))"
+package-aarch64-custom: build-aarch64-custom
+	$(call package-cores,aarch64-custom)
 
 # Package all cores into zip files
-package-all: package-arm7neonhf package-aarch64 package-arm7neonhf-patched package-aarch64-patched
+package-all: package-arm7neonhf package-aarch64 package-arm7neonhf-custom package-aarch64-custom
 	@echo ""
 	@echo "=== Packaging Summary ==="
 	@ls -lh *.zip 2>/dev/null | awk '{print "  " $$9 " - " $$5}'

@@ -5,15 +5,6 @@ on:
     # Run at 2 AM UTC every day
     - cron: '0 2 * * *'
   workflow_dispatch:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild all cores (YES) or incremental build (NO)'
-        required: false
-        default: 'NO'
-        type: choice
-        options:
-          - 'NO'
-          - 'YES'
 
 jobs:
   build:
@@ -55,7 +46,6 @@ jobs:
         run: make package-all
         env:
           JOBS: 4  # GitHub runners have 4 cores
-          FORCE: ${{ inputs.force_rebuild || 'NO' }}
 
       - name: Generate build info
         id: build_info
@@ -66,13 +56,13 @@ jobs:
           # Get core counts
           ARM7_COUNT=$(unzip -l linux-arm7neonhf.zip | grep -c '_libretro.so' || echo 0)
           AARCH64_COUNT=$(unzip -l linux-aarch64.zip | grep -c '_libretro.so' || echo 0)
-          ARM7_PATCHED_COUNT=$(unzip -l linux-arm7neonhf-patched.zip | grep -c '_libretro.so' || echo 0)
-          AARCH64_PATCHED_COUNT=$(unzip -l linux-aarch64-patched.zip | grep -c '_libretro.so' || echo 0)
+          ARM7_CUSTOM_COUNT=$(unzip -l linux-arm7neonhf-custom.zip | grep -c '_libretro.so' || echo 0)
+          AARCH64_CUSTOM_COUNT=$(unzip -l linux-aarch64-custom.zip | grep -c '_libretro.so' || echo 0)
 
           echo "arm7_count=$ARM7_COUNT" >> $GITHUB_OUTPUT
           echo "aarch64_count=$AARCH64_COUNT" >> $GITHUB_OUTPUT
-          echo "arm7_patched_count=$ARM7_PATCHED_COUNT" >> $GITHUB_OUTPUT
-          echo "aarch64_patched_count=$AARCH64_PATCHED_COUNT" >> $GITHUB_OUTPUT
+          echo "arm7_custom_count=$ARM7_CUSTOM_COUNT" >> $GITHUB_OUTPUT
+          echo "aarch64_custom_count=$AARCH64_CUSTOM_COUNT" >> $GITHUB_OUTPUT
 
       - name: Delete old nightly release
         run: |
@@ -94,15 +84,15 @@ jobs:
           **Core Counts:**
           - arm7neonhf: ${{ steps.build_info.outputs.arm7_count }} cores
           - aarch64: ${{ steps.build_info.outputs.aarch64_count }} cores
-          - arm7neonhf-patched: ${{ steps.build_info.outputs.arm7_patched_count }} cores
-          - aarch64-patched: ${{ steps.build_info.outputs.aarch64_patched_count }} cores
+          - arm7neonhf-custom: ${{ steps.build_info.outputs.arm7_custom_count }} cores
+          - aarch64-custom: ${{ steps.build_info.outputs.aarch64_custom_count }} cores
 
           These builds are automatically generated and may be unstable." \
             --prerelease \
             linux-arm7neonhf.zip \
             linux-aarch64.zip \
-            linux-arm7neonhf-patched.zip \
-            linux-aarch64-patched.zip
+            linux-arm7neonhf-custom.zip \
+            linux-aarch64-custom.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
