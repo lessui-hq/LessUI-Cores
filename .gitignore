@@ -1,8 +1,6 @@
 # Build output
 build/
-
-# Distribution packages
-*.zip
+dist/
 
 # libretro-super working directories
 libretro-super/libretro-*/
@@ -17,3 +15,4 @@ libretro-super/log/
 
 # macOS
 .DS_Store
+cores/

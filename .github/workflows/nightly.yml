@@ -32,18 +32,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Cache libretro repositories and builds
+      - name: Cache core repositories
         uses: actions/cache@v4
         with:
           path: |
-            libretro-super/libretro-*/
-            build/
-          key: libretro-builds-${{ github.run_id }}
+            cores/
+          key: cores-${{ github.run_id }}
           restore-keys: |
-            libretro-builds-
+            cores-
 
-      - name: Build all packages
-        run: make package-all
+      - name: Build and package all cores
+        run: make all
         env:
           JOBS: 4  # GitHub runners have 4 cores
 
@@ -54,10 +53,10 @@ jobs:
           echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
           # Get core counts
-          ARM7_COUNT=$(unzip -l linux-arm7neonhf.zip | grep -c '_libretro.so' || echo 0)
-          AARCH64_COUNT=$(unzip -l linux-aarch64.zip | grep -c '_libretro.so' || echo 0)
-          ARM7_CUSTOM_COUNT=$(unzip -l linux-arm7neonhf-custom.zip | grep -c '_libretro.so' || echo 0)
-          AARCH64_CUSTOM_COUNT=$(unzip -l linux-aarch64-custom.zip | grep -c '_libretro.so' || echo 0)
+          ARM7_COUNT=$(unzip -l dist/linux-arm7neonhf.zip | grep -c '_libretro.so' || echo 0)
+          AARCH64_COUNT=$(unzip -l dist/linux-aarch64.zip | grep -c '_libretro.so' || echo 0)
+          ARM7_CUSTOM_COUNT=$(unzip -l dist/linux-arm7neonhf-custom.zip | grep -c '_libretro.so' || echo 0)
+          AARCH64_CUSTOM_COUNT=$(unzip -l dist/linux-aarch64-custom.zip | grep -c '_libretro.so' || echo 0)
 
           echo "arm7_count=$ARM7_COUNT" >> $GITHUB_OUTPUT
           echo "aarch64_count=$AARCH64_COUNT" >> $GITHUB_OUTPUT
@@ -89,10 +88,10 @@ jobs:
 
           These builds are automatically generated and may be unstable." \
             --prerelease \
-            linux-arm7neonhf.zip \
-            linux-aarch64.zip \
-            linux-arm7neonhf-custom.zip \
-            linux-aarch64-custom.zip
+            dist/linux-arm7neonhf.zip \
+            dist/linux-aarch64.zip \
+            dist/linux-arm7neonhf-custom.zip \
+            dist/linux-aarch64-custom.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
