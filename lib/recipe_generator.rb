@@ -3,6 +3,7 @@
 
 require 'json'
 require 'fileutils'
+require 'yaml'
 require_relative 'logger'
 require_relative 'cpu_config'
 require_relative 'mk_parser'
@@ -15,6 +16,7 @@ class RecipeGenerator
     @cpu_config = cpu_config
     @logger = logger || BuildLogger.new
     @recipes = {}
+    @overrides = load_cmake_overrides
   end
 
   def generate
@@ -26,6 +28,8 @@ class RecipeGenerator
     mk_files.each do |mk_file|
       parse_mk_file(mk_file)
     end
+
+    apply_cmake_overrides
 
     filter_by_cores_list if @cpu_config.cores_list
 
@@ -74,6 +78,46 @@ class RecipeGenerator
 
     @recipes.select! do |core_name, _metadata|
       @cpu_config.cores_list.include?(core_name)
+    end
+  end
+
+  def load_cmake_overrides
+    overrides_file = File.join(File.dirname(__FILE__), '../config/cmake-overrides.yml')
+    return {} unless File.exist?(overrides_file)
+
+    YAML.load_file(overrides_file) || {}
+  rescue StandardError => e
+    @logger.warn("Failed to load cmake overrides: #{e.message}")
+    {}
+  end
+
+  def apply_cmake_overrides
+    return if @overrides.empty?
+
+    @overrides.each do |core_name, overrides|
+      next unless @recipes.key?(core_name)
+
+      if overrides['cmake_opts']
+        # Merge overrides: remove conflicting options, then add override options
+        existing_opts = @recipes[core_name]['cmake_opts'] || []
+        override_keys = overrides['cmake_opts'].map { |opt| opt.split('=').first }
+
+        # Remove existing options that will be overridden
+        merged_opts = existing_opts.reject do |opt|
+          opt_key = opt.split('=').first
+          override_keys.include?(opt_key)
+        end
+
+        # Add override options
+        merged_opts += overrides['cmake_opts']
+        @recipes[core_name]['cmake_opts'] = merged_opts
+        @logger.info("Applied cmake overrides for #{core_name} (#{overrides['cmake_opts'].size} options)")
+      end
+
+      if overrides['so_file']
+        @recipes[core_name]['so_file'] = overrides['so_file']
+        @logger.info("Applied so_file override for #{core_name}: #{overrides['so_file']}")
+      end
     end
   end
 end

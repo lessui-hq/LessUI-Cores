@@ -153,8 +153,11 @@ class MkParser
   end
 
   def parse_build_commands
-    # Read the .mk file to extract BUILD_CMDS
+    # Read the .mk file to extract BUILD_CMDS and INSTALL_TARGET_CMDS
     content = File.read(@mk_file)
+
+    # Parse INSTALL_TARGET_CMDS to find .so file location
+    parse_install_cmds(content)
 
     # Find define LIBRETRO_*_BUILD_CMDS block
     build_cmds_pattern = /define\s+#{variable_name('BUILD_CMDS')}\s*\n(.*?)\nendef/m
@@ -217,6 +220,24 @@ class MkParser
     unless @metadata.key?('submodules')
       @metadata['submodules'] = build_cmds.include?('submodule') ||
                                  build_cmds.include?('--recursive')
+    end
+  end
+
+  def parse_install_cmds(content)
+    # Find define LIBRETRO_*_INSTALL_TARGET_CMDS block
+    install_cmds_pattern = /define\s+#{variable_name('INSTALL_TARGET_CMDS')}\s*\n(.*?)\nendef/m
+    match = content.match(install_cmds_pattern)
+
+    return unless match
+
+    install_cmds = match[1]
+
+    # Look for pattern: $(@D)/path/to/core_libretro.so
+    # Example: $(@D)/lib/ppsspp_libretro.so
+    # Example: $(@D)/bin/tic80_libretro.so
+    if install_cmds =~ /\$\(@D\)\/([^\s]+#{@core_name}_libretro\.so)/
+      @metadata['so_file'] = Regexp.last_match(1)
+      @logger.detail("  Found .so path from INSTALL_TARGET_CMDS: #{@metadata['so_file']}")
     end
   end
 

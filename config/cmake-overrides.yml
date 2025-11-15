@@ -1,0 +1,23 @@
+# CMake option overrides for specific cores
+# These override the options extracted from Knulli's .mk files
+
+ppsspp:
+  # Use system FFmpeg instead of bundled (matches Knulli's Buildroot environment)
+  # Bundled FFmpeg requires pre-building which is complex
+  cmake_opts:
+    - "-DUSE_FFMPEG=ON"
+    - "-DUSE_SYSTEM_FFMPEG=ON"
+  # .so file is in build/lib/ because cmake builds in build/ subdirectory
+  so_file: "build/lib/ppsspp_libretro.so"
+
+tic80:
+  # TIC-80 requires disabling tools and pro version for libretro-only build
+  cmake_opts:
+    - "-DBUILD_LIBRETRO=ON"
+    - "-DBUILD_PLAYER=OFF"
+    - "-DBUILD_SOKOL=OFF"
+    - "-DBUILD_SDL=OFF"
+    - "-DBUILD_DEMO_CARTS=OFF"
+    - "-DBUILD_TOOLS=OFF"
+    - "-DBUILD_PRO=OFF"
+  so_file: "build/bin/tic80_libretro.so"

@@ -142,6 +142,7 @@ class CoreBuilder
       "-DCMAKE_C_FLAGS=#{env['CFLAGS']}",
       "-DCMAKE_CXX_FLAGS=#{env['CXXFLAGS']}",
       "-DCMAKE_SYSTEM_PROCESSOR=#{@cpu_config.arch}",
+      "-DTHREADS_PREFER_PTHREAD_FLAG=ON",
       "-DCMAKE_BUILD_TYPE=Release"
     ]
 
@@ -152,12 +153,17 @@ class CoreBuilder
 
     # Run CMake
     Dir.chdir(build_dir) do
+      @logger.detail("  Running cmake with #{cmake_opts.size} options")
+      @logger.detail("  Options: #{cmake_opts.join(' ')}")
       run_command(env, "cmake", "..", *cmake_opts)
+      @logger.detail("  Running make -j#{@parallel}")
       run_command(env, "make", "-j#{@parallel}")
+      @logger.detail("  Build commands completed")
     end
 
     # Find and copy .so file
-    so_file = find_so_file(core_dir, name)
+    # For cmake builds, the .so might be in build/ subdirectory
+    so_file = find_so_file(core_dir, name, metadata)
     if so_file
       copy_so_file(so_file, name)
       @built += 1
@@ -265,13 +271,29 @@ class CoreBuilder
     nil
   end
 
-  def find_so_file(core_dir, name)
-    # Search for .so files
+  def find_so_file(core_dir, name, metadata = {})
+    # If recipe specifies exact .so file path, use it
+    if metadata && metadata['so_file']
+      specific_path = File.join(core_dir, metadata['so_file'])
+      @logger.detail("  Checking specific path: #{specific_path}")
+      if File.exist?(specific_path)
+        @logger.detail("  Found at specific path!")
+        return specific_path
+      else
+        @logger.detail("  NOT found at specific path")
+      end
+    end
+
+    # Fallback: Search for .so files
     pattern = File.join(core_dir, '**', '*_libretro.so')
+    @logger.detail("  Searching with pattern: #{pattern}")
     so_files = Dir.glob(pattern)
+    @logger.detail("  Found #{so_files.size} .so files total")
 
     # Prefer files with matching name
-    so_files.find { |f| File.basename(f).start_with?(name) } || so_files.first
+    result = so_files.find { |f| File.basename(f).start_with?(name) } || so_files.first
+    @logger.detail("  Selected: #{result}") if result
+    result
   end
 
   def copy_so_file(so_file, name)
@@ -288,6 +310,11 @@ class CoreBuilder
       # Show last 20 lines of error
       error_lines = stderr.lines.last(20).join
       raise "Command failed: #{args.join(' ')}\n#{error_lines}"
+    end
+
+    # For debugging: log if output is suspiciously short
+    if stdout.lines.size < 5
+      @logger.detail("  Warning: command produced only #{stdout.lines.size} lines of output")
     end
 
     stdout

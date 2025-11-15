@@ -97,9 +97,9 @@ unless options[:skip_fetch]
 end
 
 # Build
-output_dir = "build/#{cpu_family}"
+output_dir = File.expand_path("build/#{cpu_family}")
 builder = CoreBuilder.new(
-  cores_dir: 'cores',
+  cores_dir: File.expand_path('build/cores'),
   output_dir: output_dir,
   cpu_config: cpu_config,
   logger: logger,

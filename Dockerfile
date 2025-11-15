@@ -62,6 +62,17 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 	libgl1-mesa-dev:arm64 \
 	libexpat1-dev \
 	libicu-dev \
+	libsdl2-dev \
+	libsdl2-ttf-dev \
+	libavcodec-dev \
+	libavdevice-dev \
+	libavfilter-dev \
+	libavformat-dev \
+	libavutil-dev \
+	libswresample-dev \
+	libswscale-dev \
+	libpostproc-dev \
+	libjanet-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 # Build liblcf from source (needed for easyrpg, uses system cmake 3.13)
