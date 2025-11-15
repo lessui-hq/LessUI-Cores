@@ -5,7 +5,7 @@
 # Usage: extract-knulli-cores <target> [knulli-path]
 
 target = ARGV[0] || "H700"
-knulli_path = ARGV[1] || "/Users/nchapman/knulli"
+knulli_path = ARGV[1] || File.join(__dir__, '..', 'knulli')
 
 unless Dir.exist?(knulli_path)
   puts "ERROR: Knulli path not found: #{knulli_path}"

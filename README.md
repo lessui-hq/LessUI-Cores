@@ -2,58 +2,68 @@
 
 Build libretro emulator cores for ARM-based retro handhelds running MinUI.
 
-**MinUI-focused, space-optimized** - Just 2 CPU families covering 18 devices!
+**Systems-driven, curated core selection** - 35 retro systems, optimized per CPU!
 
 ## Current Status
 
-✅ **51 cores** - Default build (cortex-a7 + cortex-a53)
-✅ **130 cores** - Total available (all 5 CPU families, 100% success)
-✅ **18 devices** - 100% MinUI device coverage
-✅ **66% space savings** - 479 MB vs 1.4 GB building all families
+✅ **35 systems** - Curated from systems.yml (NES, SNES, PSX, GBA, Dreamcast, etc.)
+✅ **25-27 cores** - Per CPU family (optimized core selection)
+✅ **4 CPU families** - cortex-a7, a53, a55, a76 (all MinUI-compatible devices)
+✅ **Easily extensible** - Add systems via systems.yml configuration
 
 ## Quick Start
 
 ```bash
-# Build both ARM32 and ARM64 cores (11 minutes)
+# 1. Configure systems (edit config/systems.yml to add/remove systems)
+# 2. Generate core lists
+make recipes-all
+
+# 3. Build cores for all CPU families
 make build-all
 
 # Or build individually:
-make build-cortex-a7   # Miyoo Mini family (3 devices)
-make build-cortex-a53  # All other MinUI devices (15 devices)
+make build-cortex-a7   # ARM32: Miyoo Mini family
+make build-cortex-a53  # ARM64: Universal baseline
+make build-cortex-a55  # ARM64: RK3566 optimized
+make build-cortex-a76  # ARM64: High-performance
 ```
 
-**Output:**
-- cortex-a7: 25 cores, ~177 MB
-- cortex-a53: 26 cores, ~302 MB
-- **Total: 51 cores, ~479 MB** (vs 130 cores, 1.4 GB for all families)
+**Output per CPU family:**
+- cortex-a7: 25 cores (30 systems)
+- cortex-a53: 26 cores (35 systems)
+- cortex-a55: 26 cores (35 systems)
+- cortex-a76: 27 cores (35 systems)
 
-**Build time:** ~11 minutes (vs 30 minutes for all families)
+## Supported Systems
 
-## Supported Devices (MinUI)
+35 retro gaming systems configured in `config/systems.yml`:
 
-### Active Builds (Default)
+**Classic Consoles:** Atari 2600/5200/7800, NES, Master System, TurboGrafx-16, Genesis, SNES, Sega CD, Neo Geo
+**Handhelds:** Game Boy, Game Gear, GBC, Lynx, Virtual Boy, Neo Geo Pocket, Pokémon Mini, GBA
+**Modern Eras:** PlayStation, N64, Dreamcast, NDS, PSP
+**Computers:** C64, ZX Spectrum
+**Fantasy Consoles:** PICO-8, TIC-80
+**Others:** ColecoVision, Vectrex, ScummVM, FinalBurn Neo (Arcade)
 
-| Build | Devices | Use Case |
-|-------|---------|----------|
-| **cortex-a7** | Miyoo Mini, Mini Plus, A30 | ARM32 devices |
-| **cortex-a53** | RG28xx/35xx/40xx, Trimui, Miyoo Flip, RGB30, RG353 | Universal ARM64 |
+### Per-CPU Core Optimization
 
-### Device → Build Mapping
+Each CPU family uses the optimal core for each system:
+- **cortex-a7** (ARM32): Lightweight cores (pocketsnes, stella2014, gpsp, picodrive)
+- **cortex-a53/a55**: Balanced accuracy and performance
+- **cortex-a76**: Cycle-accurate cores where beneficial (bsnes, swanstation, beetle-supergrafx)
 
-| Your Device | Use This Build | Why |
-|-------------|----------------|-----|
-| Miyoo Mini/Plus/A30 | **cortex-a7** | ARM32 (unique cores) |
-| RG28xx/34xx/35xx/40xx/CubeXX | **cortex-a53** | H700 native |
-| Trimui Brick/Smart Pro | **cortex-a53** | A133 native |
-| Miyoo Flip, RGB30, RG353 | **cortex-a53** | A55 compatible |
+Heavy systems (N64, NDS, Dreamcast, PSP) are excluded from cortex-a7 builds.
 
-**Total Coverage:** 18 MinUI devices (100%)
+## Supported Devices
 
-**Documentation:** See `docs/` for detailed guides:
-- `docs/MINUI-DEVICES.md` - Which build for your device
-- `docs/CPU-COMPARISON.md` - Why we simplified to 2 families
-- `docs/HANDHELD-DATABASE.md` - All 70+ devices categorized
-- `docs/CORE_SELECTION.md` - How cores were chosen
+| CPU Family | Devices | Architecture |
+|------------|---------|--------------|
+| **cortex-a7** | Miyoo Mini, Mini Plus, A30 | ARM32 (ARMv7) |
+| **cortex-a53** | RG28xx/35xx/40xx, Trimui Brick/Smart Pro | ARM64 baseline |
+| **cortex-a55** | Miyoo Flip, RGB30, RG353 (RK3566) | ARM64 w/ crypto+dotprod |
+| **cortex-a76** | RG406/556, Retroid Pocket 5 | ARM64 high-performance |
+
+See `config/systems.yml` for complete system definitions and per-CPU core mappings.
 
 ### CPU Family Details
 
@@ -91,25 +101,83 @@ Each CPU family uses optimized compiler flags for best performance:
 
 ## How It Works
 
-1. **Extract from Knulli**: Uses Make to evaluate Knulli's `.mk` files, extracting tested commit hashes and build configs
-2. **Filter cores**: Uses CPU-specific core lists (78 cores for cortex-a53, tested by Knulli on RG35xx)
-3. **Build in Docker**: Cross-compiles with CPU-optimized flags in Debian Buster (glibc 2.28) for maximum device compatibility
+### Build Flow
+
+1. **Define systems** (`config/systems.yml`)
+   - Specify retro systems to support
+   - Map each system to the best libretro core per CPU family
+   - Example: SNES uses `pocketsnes` on cortex-a7, `snes9x` on a53/a55, `bsnes` on a76
+
+2. **Generate core lists** (`scripts/generate-cores-from-systems`)
+   ```bash
+   make recipes-cortex-a53  # Generates config/cores-cortex-a53.list
+   ```
+   - Reads systems.yml
+   - Determines unique cores needed for each CPU family
+   - Saves to `config/cores-{cpu}.list`
+
+3. **Generate recipes** (`scripts/generate-recipes`)
+   - Parses Knulli's `.mk` files to extract:
+     - Git repository URLs
+     - Tested commit hashes (production-proven on real hardware)
+     - Build configurations and dependencies
+   - Filters to only cores in the CPU family's list
+   - Saves to `recipes/linux/{cpu}.json`
+
+4. **Build cores** (`scripts/build-all`)
+   ```bash
+   make build-cortex-a53
+   ```
+   - Fetches source code at tested commits
+   - Cross-compiles with CPU-optimized flags
+   - Outputs `.so` files to `build/{cpu}/`
 
 ### Benefits
 
-✅ **Knulli's tested commits** - Production-proven on real hardware
-✅ **Auto-updates** - Re-run extraction when Knulli updates
-✅ **No Buildroot complexity** - Simple recipe-based builds
-✅ **Proven build system** - Uses tested fetch/build scripts
-✅ **glibc 2.28 compatibility** - Works on older device firmware
+✅ **Systems-driven** - Curate by use case, not individual cores
+✅ **CPU-optimized** - Best core per system per CPU family
+✅ **Knulli-tested** - Production commits proven on real hardware
+✅ **Easily extensible** - Add systems via YAML config
+✅ **No Buildroot** - Simple recipe-based builds
+✅ **glibc 2.28** - Maximum device compatibility
+
+## Adding New Systems
+
+1. **Edit `config/systems.yml`**:
+   ```yaml
+   wonderswan:
+     name: Bandai WonderSwan
+     cores:
+       default: beetle-wswan
+       cortex-a7: null  # Too heavy for ARM32
+   ```
+
+2. **Regenerate core lists**:
+   ```bash
+   scripts/generate-cores-from-systems cortex-a53
+   # Or for all families:
+   make recipes-all
+   ```
+
+3. **Build**:
+   ```bash
+   make build-cortex-a53
+   ```
+
+The system will automatically fetch the core from Knulli's definitions and build it with the correct flags.
 
 ## Build Commands
 
 ```bash
+# Generate recipes (run after editing systems.yml)
+make recipes-cortex-a53
+make recipes-all
+
 # Build specific CPU family
+make build-cortex-a7
 make build-cortex-a53
 make build-cortex-a55
-make build-cortex-a7
+make build-cortex-a76
 
 # Build all families
 make build-all
@@ -123,19 +191,22 @@ make clean-cortex-a53
 make clean
 ```
 
-## Updating from Knulli
+## Updating Cores from Knulli
 
-When Knulli updates their cores:
+When Knulli updates their core definitions or commits:
 
 ```bash
-cd /Users/nchapman/knulli
-git pull
+# Update Knulli submodule to latest
+git submodule update --remote knulli
 
-cd /Users/nchapman/Drive/Code/LessUI-Cores
-make recipes-cortex-a53
+# Regenerate recipes with latest commits
+make recipes-all
+
+# Rebuild cores
+make build-all
 ```
 
-This regenerates recipes with updated commits.
+This pulls the latest tested commits from Knulli's production builds.
 
 ## Build Environment
 
@@ -147,44 +218,89 @@ This regenerates recipes with updated commits.
 ## Architecture
 
 ```
-minarch-cores/
-├── config/                      # CPU family configs
-│   ├── cortex-a53.config        # Compiler flags
-│   ├── cores-cortex-a53.list    # Enabled cores (78 cores)
-│   ├── cortex-a55.config
-│   ├── cores-cortex-a55.list
-│   └── ...
-├── recipes/linux/               # Generated recipes (JSON)
-│   ├── cortex-a53.json          # 78 cores with commit SHAs
-│   └── ...
+LessUI-Cores/
+├── config/
+│   ├── systems.yml              # System definitions (source of truth)
+│   ├── cortex-a53.config        # Compiler flags per CPU
+│   └── cores-cortex-a53.list    # Generated: 26 cores for a53
+├── scripts/
+│   ├── generate-cores-from-systems  # systems.yml → cores-*.list
+│   ├── generate-recipes             # cores list → recipes JSON
+│   ├── build-all                    # Build all cores for CPU
+│   └── build-one                    # Build single core (testing)
 ├── lib/                         # Ruby build system
-│   ├── logger.rb                # Colored output
 │   ├── cpu_config.rb            # Parse CPU configs
 │   ├── mk_parser.rb             # Parse Knulli .mk files
-│   ├── recipe_generator.rb      # Generate recipes
-│   ├── source_fetcher.rb        # Fetch sources
+│   ├── recipe_generator.rb      # Extract build info from Knulli
 │   ├── core_builder.rb          # Build individual cores
 │   └── cores_builder.rb         # Orchestrate builds
-├── scripts/                     # Entry points
-│   ├── generate-recipes         # Generate JSON recipes
-│   ├── build-all                # Build all cores
-│   ├── build-one                # Build single core
-│   └── fetch-sources            # Fetch source code
-├── Dockerfile                   # Debian Buster build environment
+├── recipes/linux/
+│   └── cortex-a53.json          # Generated: 26 recipes with commits
+├── build/                       # All build artifacts
+│   ├── cores/                   # Fetched source code
+│   ├── logs/                    # Build logs
+│   ├── dist/                    # Packaged zips
+│   ├── cortex-a53/*.so          # Built cores
+│   ├── cortex-a55/*.so
+│   ├── cortex-a7/*.so
+│   └── cortex-a76/*.so
+├── knulli/                      # Git submodule (Knulli sources)
+├── Dockerfile                   # Debian Buster (GCC 8.3, glibc 2.28)
 └── Makefile                     # Build orchestration
 ```
+
+### Key Files
+
+- **`config/systems.yml`** - Define systems and cores (edit this to add systems!)
+- **`config/cores-*.list`** - Generated from systems.yml (don't edit directly)
+- **`recipes/linux/*.json`** - Generated from Knulli .mk files (don't edit directly)
 
 ## Output
 
 Cores are built as `.so` files:
 - `build/cortex-a53/*.so` - Individual cores
-- `dist/linux-cortex-a53.zip` - Distribution package
+- `build/dist/linux-cortex-a53.zip` - Distribution package
+- `build/cores/` - Fetched source code
+- `build/logs/` - Build logs
 
 ## Requirements
 
 - Docker
-- ~10GB disk space
-- 1-3 hours build time
+- Git (for cloning submodules)
+- ~5GB disk space per CPU family
+- 1-3 hours build time per CPU family
+
+## Initial Setup
+
+```bash
+# Clone the repository with submodules
+git clone --recursive https://github.com/YOUR-USERNAME/LessUI-Cores.git
+
+# Or if already cloned, initialize the submodule:
+git submodule update --init --recursive
+```
+
+## Examples
+
+**Build only Game Boy cores for testing:**
+```bash
+# Edit systems.yml to include only gb, gbc, gba
+scripts/generate-cores-from-systems cortex-a53
+make build-cortex-a53
+```
+
+**Add arcade support:**
+```yaml
+# In config/systems.yml:
+mame2003plus:
+  name: MAME 2003-Plus
+  cores:
+    default: mame2003-plus
+```
+```bash
+make recipes-all
+make build-all
+```
 
 ## License
 

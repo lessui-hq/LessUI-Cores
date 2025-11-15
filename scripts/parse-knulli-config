@@ -5,7 +5,7 @@
 # Usage: parse-knulli-config <target>
 
 target = ARGV[0] || "H700"
-knulli_path = "/Users/nchapman/knulli"
+knulli_path = ARGV[1] || File.join(__dir__, '..', 'knulli')
 config_file = File.join(knulli_path, "package/batocera/core/batocera-system/Config.in")
 
 unless File.exist?(config_file)

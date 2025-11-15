@@ -19,7 +19,8 @@ end
 
 # Setup
 logger = BuildLogger.new
-package_dir = 'package/batocera/emulators/retroarch/libretro'
+knulli_root = File.expand_path('../knulli', __dir__)
+package_dir = File.join(knulli_root, 'package/batocera/emulators/retroarch/libretro')
 config_dir = 'config'
 output_file = "recipes/linux/#{cpu_family}.json"
 

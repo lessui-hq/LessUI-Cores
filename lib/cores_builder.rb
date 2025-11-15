@@ -14,9 +14,9 @@ require_relative 'core_builder'
 class CoresBuilder
   def initialize(
     cpu_family:,
-    package_dir: 'package/batocera/emulators/retroarch/libretro',
+    package_dir: File.expand_path('../knulli/package/batocera/emulators/retroarch/libretro', __dir__),
     config_dir: 'config',
-    cores_dir: 'cores',
+    cores_dir: 'build/cores',
     output_dir: nil,
     recipe_file: nil,
     log_file: nil,

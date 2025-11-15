@@ -1,71 +1,30 @@
 # Documentation Index
 
-Quick guide to which file has what information.
+Quick reference for finding information.
 
----
+## Core Documentation
 
-## 📖 User Documentation (Root)
+| File | Purpose |
+|------|---------|
+| **[../README.md](../README.md)** | Build instructions and project overview |
+| **[MINUI-DEVICES.md](MINUI-DEVICES.md)** | MinUI device compatibility |
+| **[HANDHELD-DATABASE.md](HANDHELD-DATABASE.md)** | Complete device database |
+| **[CPU-COMPARISON.md](CPU-COMPARISON.md)** | CPU family specifications |
+| **[CORE_SELECTION.md](CORE_SELECTION.md)** | Core selection methodology |
 
-**Start here if you're installing cores on your device:**
+## Common Questions
 
-| File | Purpose | Who Needs This |
-|------|---------|----------------|
-| **../README.md** | Project overview, quick start | Everyone |
-| **../TODO.md** | Build status, what's complete | Status check |
-| **make help** | Build commands reference | Builders |
+**Which cores for my device?** → [MINUI-DEVICES.md](MINUI-DEVICES.md)
 
----
+**What CPU does my device use?** → [HANDHELD-DATABASE.md](HANDHELD-DATABASE.md)
 
-## 📚 Reference Documentation (docs/)
+**How to build cores?** → [../README.md](../README.md)
 
-**Detailed guides and analysis:**
+**How are cores selected?** → [CORE_SELECTION.md](CORE_SELECTION.md)
 
-| File | Purpose | Who Needs This |
-|------|---------|----------------|
-| **MINUI-DEVICES.md** | Device compatibility guide | MinUI users |
-| **CORE_SELECTION.md** | Why we picked these cores | Curious users |
-| **CPU-COMPARISON.md** | Architecture analysis | Optimization nerds |
-| **HANDHELD-DATABASE.md** | 70+ devices by CPU | Researchers |
+## Build System
 
----
-
-## 🎯 Quick Reference
-
-### "Which cores do I install?"
-→ **docs/MINUI-DEVICES.md**
-
-### "Why only 2 CPU families?"
-→ **docs/CPU-COMPARISON.md**
-
-### "Why these specific cores?"
-→ **docs/CORE_SELECTION.md**
-
-### "What bugs were fixed?"
-→ **TODO.md** (Section: "Fixed Issues")
-
-### "Which devices use which CPU?"
-→ **docs/HANDHELD-DATABASE.md**
-
-### "How do I build?"
-→ **README.md** or `make help`
-
-### "Can I enable cortex-a55/a35/a76?"
-→ **Makefile** line 22 (add to CPU_FAMILIES)
-
----
-
-## 📊 At a Glance
-
-**Active Build:**
-- 2 families: cortex-a7, cortex-a53
-- 51 cores total
-- 479 MB
-- 18 MinUI devices (100%)
-
-**Optional Build:**
-- +3 families: cortex-a35, cortex-a55, cortex-a76
-- +79 cores
-- +920 MB
-- Non-MinUI devices (Knulli, Android)
-
-**To enable optional:** Edit `Makefile` line 22
+- **systems.yml** - System and core definitions (source of truth)
+- **Makefile** - Build commands
+- **config/*.config** - CPU compiler flags
+- **config/*.list** - Generated core lists per CPU

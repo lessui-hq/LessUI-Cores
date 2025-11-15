@@ -1,18 +1,10 @@
-# Build output
+# Build output (everything under build/)
 build/
-dist/
-cores/
-logs/
-output/
-dl/
 
 # libretro-super working directories (legacy)
 libretro-super/libretro-*/
 libretro-super/dist/
 libretro-super/log/
-
-# Knulli package symlink
-package/
 
 # Logs
 *.log

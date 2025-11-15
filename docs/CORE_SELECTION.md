@@ -1,137 +1,86 @@
 # Core Selection Methodology
 
-This document explains how we chose which libretro cores to use for each system.
+How libretro cores are selected for each system and CPU family.
 
-## Overview
+## Source: systems.yml
 
-Our core selection is based on **Knulli's battle-tested configurations** for real handheld devices, ensuring we use cores that actually work well on the target hardware.
+All cores are defined in `config/systems.yml`. Each system specifies:
+- Default core (used by all CPU families)
+- CPU-specific overrides (optional)
 
-## Why Knulli?
+**Example:**
+```yaml
+snes:
+  name: Super Nintendo
+  cores:
+    default: snes9x           # Used by cortex-a53, a55, a76
+    cortex-a7: pocketsnes     # ARM32 uses lighter core
+    cortex-a76: bsnes         # High-end uses cycle-accurate
+```
 
-[Knulli](https://github.com/knulli-cfw/distribution) is a Linux distribution specifically designed for retro gaming handhelds. They:
-- Test cores on actual devices (RG35xx, RG40xx, etc.)
-- Optimize for ARM performance and battery life
-- Maintain compatibility with hundreds of handhelds
-- Make device-specific choices (weak vs powerful CPUs)
+## Core Selection Principles
 
-Rather than guess which cores work best, we leverage their real-world testing.
+### Cortex-A7 (ARM32 - Low Power)
 
-## How We Used Knulli
+**Philosophy:** Lightweight cores optimized for ARM32
 
-### 1. System List
-We started with systems from:
-- **MinUI** (13 core systems) - Minimalist, proven essentials
-- **Onion OS** - Popular RG35xx CFW system list
-- **Additions** - N64, Dreamcast, PSP (requested features)
-
-**Result:** 35 systems total
-
-### 2. Core Choices Per CPU Family
-
-We parsed Knulli's `Config.in` files to extract their actual core selections:
-
-#### Cortex-A7 (ARM32, low-end devices like Raspberry Pi 1)
-**Source:** Knulli's BCM2835 configuration
-
-Example cores:
-- **SNES:** `pocketsnes` - ARM-optimized, lightest option
-- **Atari 2600:** `stella2014` - 2014 version, lighter than current
-- **GBA:** `gpsp` - Uses dynarec for speed
+**Examples:**
+- **SNES:** `pocketsnes` - ARM-optimized
+- **Atari 2600:** `stella2014` - Older, lighter version
+- **GBA:** `gpsp` - Dynarec for speed
+- **Genesis:** `picodrive` - Assembly-optimized
 - **PSX:** `pcsx` - Lighter than beetle-psx
-- **Arcade:** `fbalpha` - Lighter than fbneo
 
-**Philosophy:** Prioritize speed over accuracy
+Heavy systems (N64, NDS, Dreamcast, PSP) are set to `null` (excluded).
 
-#### Cortex-A53/A55/A76 (ARM64, mid to high-end handhelds)
-**Source:** Knulli's H700/A133 configuration (RG35xx, RG40xx devices)
-
-Example cores:
-- **SNES:** `snes9x` - Balance of speed and accuracy
-- **Atari 2600:** `stella` - Current, more accurate version
-- **GBA:** `mgba` - More accurate than gpsp
-- **PSX:** `beetle-psx` - More accurate than pcsx
-- **Arcade:** `fbneo` - Newer, more games
-- **Dreamcast:** `flycast-xtreme` - Knulli's H700/A133 choice
+### Cortex-A53/A55 (ARM64 - Universal)
 
 **Philosophy:** Balance accuracy and performance
 
-## Validation Process
+**Examples:**
+- **SNES:** `snes9x` - Balanced emulation
+- **Atari 2600:** `stella` - Current version
+- **GBA:** `mgba` - More accurate
+- **PSX:** `beetle-psx` - Better accuracy
+- **Dreamcast:** `flycast-xtreme` - ARM64 optimized
 
-1. **Parsed Knulli's Config.in** - Extracted actual conditional selects
-2. **Verified core existence** - All cores exist in Knulli's libretro packages
-3. **Matched device targets** - Our CPU families map to Knulli's device categories
-4. **Cross-referenced MinUI** - Confirmed overlap with MinUI's proven cores
+### Cortex-A76 (ARM64 - High Performance)
 
-## Key Decisions
+**Philosophy:** Use cycle-accurate cores where beneficial
 
-### Dreamcast: flycast-xtreme vs flycast
-- **Choice:** `flycast-xtreme`
-- **Why:**
-  - Knulli's preferred choice for H700/A133 (our target devices)
-  - Uses Makefile build (avoids GCC 8.3 CMake bug we encountered)
-  - Specifically optimized for ARM handhelds
+**Additional cores:**
+- **SNES:** `bsnes` - Cycle-accurate
+- **PSX:** `swanstation` - Modern, accurate
+- **PC Engine:** `beetle-supergrafx` - Full SuperGrafx
 
-### GBA: gpsp vs mgba
-- **cortex-a7:** `gpsp` (Knulli BCM2835 choice)
-  - Uses dynarec (dynamic recompilation) for speed
-  - Knulli also makes this available for H700/A133 as a lighter option
-- **cortex-a53+:** `mgba` (Knulli default for ARM64)
-  - More accurate, better compatibility
-  - Fast enough on ARM64
+## Core Sources
 
-### SNES: Multiple Options
-- **cortex-a7:** `pocketsnes` (Knulli BCM2835 choice)
-  - ARM-optimized
-  - Note: MinUI uses `snes9x2005_plus` which Knulli doesn't carry
-- **cortex-a53+:** `snes9x` (Knulli default)
-- **cortex-a76:** `bsnes` (cycle-accurate, for powerful devices)
+All cores come from Knulli's tested libretro packages:
+- **Repository:** https://github.com/knulli-cfw/distribution
+- **Location:** `package/batocera/emulators/retroarch/libretro/`
+- **Validation:** Each core verified to exist in Knulli's build system
 
-## Configuration File
+Build information (URLs, commits, dependencies) is extracted from Knulli's `.mk` files.
 
-All choices are documented in `config/systems.yml`:
+## Per-System Optimizations
 
-```yaml
-snes:
-  name: Super Nintendo Entertainment System
-  cores:
-    default: snes9x
-    cortex-a7: pocketsnes  # ARM-optimized, lightest SNES core
-    cortex-a76: bsnes  # Cycle-accurate on powerful devices
-```
+Different cores per CPU family allow optimal performance:
 
-Each core choice includes:
-- Default (used unless overridden)
-- CPU-specific overrides
-- Comments explaining the choice
-- References to Knulli configuration when applicable
+| System | cortex-a7 | cortex-a53/a55 | cortex-a76 |
+|--------|-----------|----------------|------------|
+| SNES | pocketsnes | snes9x | bsnes |
+| PSX | pcsx | beetle-psx | swanstation |
+| GBA | gpsp | mgba | mgba |
+| Atari 2600 | stella2014 | stella | stella |
 
-## Generating Core Lists
+This ensures weak CPUs get playable performance while strong CPUs get better accuracy.
 
-Core lists are auto-generated from `systems.yml`:
+## Adding New Systems
 
-```bash
-# Generate cores for a specific CPU family
-ruby scripts/generate-cores-from-systems cortex-a53
+1. Add system to `config/systems.yml`
+2. Specify core per CPU family
+3. Run `scripts/generate-cores-from-systems <cpu>`
+4. Regenerate recipes: `make recipes-all`
+5. Build: `make build-all`
 
-# Output: config/cores-cortex-a53.list
-```
-
-This ensures consistency and traceability.
-
-## Sources
-
-- **Knulli repository:** https://github.com/knulli-cfw/distribution
-- **Config.in file:** `package/batocera/core/batocera-system/Config.in`
-- **Device targets:**
-  - BCM2835 (cortex-a7): Raspberry Pi 1
-  - H700/A133 (cortex-a53): RG35xx, RG40xx, Trimui devices
-
-## Summary
-
-Every core choice is:
-✅ Based on Knulli's tested configurations
-✅ Validated against real hardware
-✅ CPU-appropriate (lighter cores for weaker CPUs)
-✅ Documented and traceable
-
-We're not guessing - we're using proven configurations from a project that tests on actual handheld hardware.
+The build system automatically fetches core definitions from Knulli.

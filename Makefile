@@ -8,18 +8,17 @@ DOCKER_IMAGE := minarch-cores-builder
 # Use native architecture (ARM64 on Apple Silicon, x86_64 elsewhere)
 DOCKER_RUN := docker run --rm -v $(PWD):/workspace -w /workspace $(DOCKER_IMAGE)
 
-# CPU families to build (MinUI-focused, space-optimized)
-# Building only 2 families to save SD card space:
+# CPU families to build (all MinUI-compatible optimized variants)
+# Building 4 CPU families for optimal per-device performance
+# and minui build optimization:
 #   - cortex-a7:  ARM32 devices (Miyoo Mini family)
-#   - cortex-a53: ARM64 universal (works on A35, A53, A55 devices)
+#   - cortex-a53: ARM64 universal baseline
+#   - cortex-a55: RK3566 optimized (Miyoo Flip, RGB30, RG353)
+#   - cortex-a76: High-performance ARM64 (RG-406/556)
 #
-# Disabled to save space:
-#   - cortex-a35: No MinUI support (RG-351 runs Knulli/JelOS)
-#   - cortex-a55: Works fine with A53 binaries (<1% perf difference)
-#   - cortex-a76: No MinUI support (RG-406/556 run Android/Knulli)
-#
-# To build disabled families: Add to CPU_FAMILIES list
-CPU_FAMILIES := cortex-a7 cortex-a53
+# Disabled:
+#   - cortex-a35: RG-351 series (no MinUI support - runs Knulli/JelOS)
+CPU_FAMILIES := cortex-a7 cortex-a53 cortex-a55 cortex-a76
 
 # All available CPU families (including disabled)
 ALL_CPU_FAMILIES := cortex-a7 cortex-a35 cortex-a53 cortex-a55 cortex-a76
@@ -35,21 +34,21 @@ help:
 	@echo "  2. Build cores:      make build-cortex-a53"
 	@echo "  3. Build all:        make build-all"
 	@echo ""
-	@echo "Active CPU Families (MinUI-supported, space-optimized):"
-	@echo "  make build-cortex-a7        ARM32: Miyoo Mini family (3 devices)"
-	@echo "  make build-cortex-a53       ARM64: Universal 64-bit (15 devices)"
-	@echo "  make build-all              Build both families (~11 min)"
+	@echo "Active CPU Families (MinUI-compatible optimized variants):"
+	@echo "  make build-cortex-a7        ARM32: Miyoo Mini family"
+	@echo "  make build-cortex-a53       ARM64: Universal baseline"
+	@echo "  make build-cortex-a55       ARM64: RK3566 optimized"
+	@echo "  make build-cortex-a76       ARM64: High-performance"
+	@echo "  make build-all              Build all 4 families"
 	@echo ""
 	@echo "Device Compatibility Guide:"
 	@echo "  Miyoo Mini/Plus/A30         → cortex-a7"
-	@echo "  RG28xx/35xx/40xx/CubeXX     → cortex-a53 (H700/A133 native)"
-	@echo "  Miyoo Flip, RGB30, RG353    → cortex-a53 (A55 compatible)"
-	@echo "  Trimui Brick/Smart Pro      → cortex-a53 (A133 native)"
+	@echo "  RG28xx/35xx/40xx/CubeXX     → cortex-a53"
+	@echo "  Miyoo Flip, RGB30, RG353    → cortex-a55"
+	@echo "  RG406/556, Retroid Pocket   → cortex-a76"
 	@echo ""
-	@echo "Optional Builds (disabled to save SD space):"
-	@echo "  make build-cortex-a35       RG351 series (no MinUI)"
-	@echo "  make build-cortex-a55       RK3566 optimized (minor gains)"
-	@echo "  make build-cortex-a76       RG406/556 (no MinUI)"
+	@echo "Optional Builds (disabled):"
+	@echo "  make build-cortex-a35       RG351 series (no MinUI support)"
 	@echo ""
 	@echo "Single Core Build (for testing/debugging):"
 	@echo "  make core-cortex-a53-gambatte  Build just gambatte for cortex-a53"
@@ -116,8 +115,8 @@ build-%: docker-build
 	@CORE_COUNT=$$(jq 'length' recipes/linux/$*.json); \
 	echo "Building $$CORE_COUNT cores for $*"
 	@echo "This will take 1-3 hours..."
-	@mkdir -p build/$* cores logs
-	$(DOCKER_RUN) ruby scripts/build-all $* -j $(JOBS) -l logs/$*-build.log
+	@mkdir -p build/$* build/cores build/logs
+	$(DOCKER_RUN) ruby scripts/build-all $* -j $(JOBS) -l build/logs/$*-build.log
 	@echo ""
 	@echo "✓ Build complete for $*"
 	@echo "  Cores built: $$(ls build/$*/*.so 2>/dev/null | wc -l)"
@@ -153,7 +152,7 @@ core-%: docker-build
 		echo "  make recipes-$$FAMILY"; \
 		exit 1; \
 	fi; \
-	mkdir -p build/$$FAMILY cores logs; \
+	mkdir -p build/$$FAMILY build/cores build/logs; \
 	$(DOCKER_RUN) ruby scripts/build-one $$FAMILY $$CORE -j $(JOBS); \
 	if [ -f build/$$FAMILY/$${CORE}_libretro.so ]; then \
 		echo ""; \
@@ -173,16 +172,16 @@ package-%:
 		exit 1; \
 	fi
 	@echo "=== Packaging $* cores ==="
-	@mkdir -p dist
-	@cd build/$* && zip -q ../../dist/linux-$*.zip *.so
-	@echo "✓ Created dist/linux-$*.zip ($$(ls -lh dist/linux-$*.zip | awk '{print $$5}'))"
+	@mkdir -p build/dist
+	@cd build/$* && zip -q ../dist/linux-$*.zip *.so
+	@echo "✓ Created build/dist/linux-$*.zip ($$(ls -lh build/dist/linux-$*.zip | awk '{print $$5}'))"
 
 # Package all families
 .PHONY: package-all
 package-all: $(addprefix package-,$(CPU_FAMILIES))
 	@echo ""
 	@echo "=== Packaging Summary ==="
-	@ls -lh dist/*.zip 2>/dev/null | awk '{print "  " $$9 " - " $$5}'
+	@ls -lh build/dist/*.zip 2>/dev/null | awk '{print "  " $$9 " - " $$5}'
 
 # List available cores
 list-cores:
@@ -199,8 +198,7 @@ list-cores:
 clean-%:
 	@echo "=== Cleaning $* ==="
 	rm -rf build/$*
-	rm -rf output/$*
-	rm -f dist/linux-$*.zip
+	rm -f build/dist/linux-$*.zip
 	@echo "✓ Cleaned $*"
 
 # Clean build artifacts from cores (IMPORTANT: Run between CPU family builds!)
@@ -208,22 +206,22 @@ clean-%:
 clean-cores:
 	@echo "=== Cleaning build artifacts from cores directories ==="
 	@echo "Removing .o files..."
-	find cores -name "*.o" -type f -delete 2>/dev/null || true
+	find build/cores -name "*.o" -type f -delete 2>/dev/null || true
 	@echo "Removing .a files..."
-	find cores -name "*.a" -type f -delete 2>/dev/null || true
+	find build/cores -name "*.a" -type f -delete 2>/dev/null || true
 	@echo "Removing .so files..."
-	find cores -name "*.so" -type f -delete 2>/dev/null || true
+	find build/cores -name "*.so" -type f -delete 2>/dev/null || true
 	@echo "Removing .dylib files..."
-	find cores -name "*.dylib" -type f -delete 2>/dev/null || true
+	find build/cores -name "*.dylib" -type f -delete 2>/dev/null || true
 	@echo "Removing build directories..."
-	find cores -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
-	find cores -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
-	@echo "✓ Cleaned $(shell find cores -name '*.o' -o -name '*.a' -o -name '*.so' 2>/dev/null | wc -l) artifact files"
+	find build/cores -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
+	find build/cores -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
+	@echo "✓ Cleaned $(shell find build/cores -name '*.o' -o -name '*.a' -o -name '*.so' 2>/dev/null | wc -l) artifact files"
 
 # Clean everything
 clean:
 	@echo "=== Cleaning all ==="
-	-rm -rf build output dl dist cores
+	-rm -rf build
 	@echo "✓ Cleaned"
 
 # Open interactive shell in build container
