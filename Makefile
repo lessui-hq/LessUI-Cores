@@ -44,6 +44,7 @@ help:
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make list-cores             List available cores (131 from Knulli)"
+	@echo "  make clean-cores            Clean .o/.a/.so artifacts (run between CPU builds!)"
 	@echo "  make clean-cortex-a53       Clean specific build"
 	@echo "  make clean                  Clean everything"
 	@echo "  make shell                  Open shell in build container"
@@ -180,6 +181,23 @@ clean-%:
 	rm -rf output/$*
 	rm -f dist/linux-$*.zip
 	@echo "✓ Cleaned $*"
+
+# Clean build artifacts from cores (IMPORTANT: Run between CPU family builds!)
+.PHONY: clean-cores
+clean-cores:
+	@echo "=== Cleaning build artifacts from cores directories ==="
+	@echo "Removing .o files..."
+	find cores -name "*.o" -type f -delete 2>/dev/null || true
+	@echo "Removing .a files..."
+	find cores -name "*.a" -type f -delete 2>/dev/null || true
+	@echo "Removing .so files..."
+	find cores -name "*.so" -type f -delete 2>/dev/null || true
+	@echo "Removing .dylib files..."
+	find cores -name "*.dylib" -type f -delete 2>/dev/null || true
+	@echo "Removing build directories..."
+	find cores -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
+	find cores -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
+	@echo "✓ Cleaned $(shell find cores -name '*.o' -o -name '*.a' -o -name '*.so' 2>/dev/null | wc -l) artifact files"
 
 # Clean everything
 clean:

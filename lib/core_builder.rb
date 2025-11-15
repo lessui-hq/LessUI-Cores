@@ -60,6 +60,9 @@ class CoreBuilder
       return
     end
 
+    # Clean before building to prevent contamination
+    clean_before_build(name, build_type, metadata, core_dir)
+
     case build_type
     when 'cmake'
       build_cmake(name, metadata, core_dir)
@@ -77,12 +80,50 @@ class CoreBuilder
   private
 
   def run_prebuild_steps(name, core_dir)
-    # Core-specific pre-build steps
-    # Currently no cores require pre-build steps
+    # Core-specific pre-build steps can be added here if needed
+  end
+
+  def clean_before_build(name, build_type, metadata, core_dir)
+    # Clean build artifacts to prevent cross-contamination between CPU families
+    @logger.detail("  Cleaning previous build artifacts")
+
+    Dir.chdir(core_dir) do
+      case build_type
+      when 'make'
+        # Make-based cores: Use standard 'make clean'
+        build_subdir = metadata['build_dir'] || '.'
+        makefile = metadata['makefile'] || 'Makefile'
+
+        Dir.chdir(build_subdir) do
+          # Try to run make clean (ignore errors if clean target doesn't exist)
+          platform = metadata['platform'] || @cpu_config.platform
+          system("make -f #{makefile} clean platform=#{platform} 2>/dev/null") || true
+
+          # Also manually remove common artifacts as fallback
+          Dir.glob('*.o').each { |f| File.delete(f) rescue nil }
+          Dir.glob('*.so').each { |f| File.delete(f) rescue nil }
+          Dir.glob('*.a').each { |f| File.delete(f) rescue nil }
+        end
+
+      when 'cmake'
+        # CMake-based cores: Delete entire build directory
+        # This is critical because CMakeCache.txt stores architecture-specific settings
+        FileUtils.rm_rf('build') if Dir.exist?('build')
+        FileUtils.rm_f('CMakeCache.txt')
+        FileUtils.rm_f('cmake_install.cmake')
+        FileUtils.rm_rf('CMakeFiles')
+
+        # Remove any stray build artifacts
+        Dir.glob('*.so').each { |f| File.delete(f) rescue nil }
+        Dir.glob('**/*.o').each { |f| File.delete(f) rescue nil }
+        Dir.glob('**/*.a').each { |f| File.delete(f) rescue nil }
+      end
+    end
+  rescue StandardError => e
+    @logger.detail("  Warning: Clean failed (#{e.message}), continuing anyway")
   end
 
   def build_cmake(name, metadata, core_dir)
-    # Handle special pre-build steps for specific cores
     run_prebuild_steps(name, core_dir)
 
     build_dir = File.join(core_dir, 'build')
@@ -133,12 +174,10 @@ class CoreBuilder
     platform = metadata['platform']
     platform = @cpu_config.platform if platform.nil? || platform.include?('$(')
 
-    # Core-specific platform overrides and extra arguments
+    # flycast-xtreme requires CPU-specific platform flags
     extra_make_args = []
 
     if name == 'flycast-xtreme'
-      # flycast-xtreme configuration matching Knulli's settings
-      # See: libretro-flycast-xtreme.mk for reference
       extra_make_args << 'HAVE_OPENMP=1'
 
       case @cpu_config.family
@@ -147,12 +186,17 @@ class CoreBuilder
         platform = 'odroid-n2'
         extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
         @logger.detail("  Using Knulli H700/A133 config: platform=#{platform}")
+      when 'cortex-a35'
+        # RG351 series (legacy 64-bit ARM)
+        platform = 'odroid-n2'
+        extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
+        @logger.detail("  Using platform=#{platform} for Cortex-A35")
       when 'cortex-a55'
         # RK3566 devices (Miyoo Flip, etc.)
         platform = 'odroidc4'
         extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
         @logger.detail("  Using platform=#{platform} for Cortex-A55")
-      when 'cortex-a7', 'cortex-a35'
+      when 'cortex-a7'
         platform = 'arm'
         extra_make_args += ['FORCE_GLES=1', 'ARCH=arm', 'LDFLAGS=-lrt']
         @logger.detail("  Using platform=#{platform} for ARM32")
@@ -166,7 +210,6 @@ class CoreBuilder
       end
     end
 
-    # Handle special pre-build steps for specific cores
     run_prebuild_steps(name, core_dir)
 
     work_dir = File.join(core_dir, build_subdir)
