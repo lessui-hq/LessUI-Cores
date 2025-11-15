@@ -32,10 +32,10 @@ No patches currently applied. The system is ready for core-specific fixes as nee
 
 ### For New Cores
 
-1. Make changes in the core's source directory: `build/cores/libretro-<corename>/`
+1. Make changes in the core's source directory: `workspace/cores/libretro-<corename>/`
 2. Create a patch using git:
    ```bash
-   cd build/cores/libretro-<corename>
+   cd workspace/cores/libretro-<corename>
    git diff > /path/to/project/patches/<corename>/01-description.patch
    ```
 3. Test that the patch applies cleanly:

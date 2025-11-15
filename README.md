@@ -130,7 +130,7 @@ Each CPU family uses optimized compiler flags for best performance:
    ```
    - Fetches source code at tested commits
    - Cross-compiles with CPU-optimized flags
-   - Outputs `.so` files to `build/{cpu}/`
+   - Outputs `.so` files to `workspace/{cpu}/`
 
 ### Benefits
 
@@ -236,7 +236,7 @@ LessUI-Cores/
 │   └── cores_builder.rb         # Orchestrate builds
 ├── recipes/linux/
 │   └── cortex-a53.json          # Generated: 26 recipes with commits
-├── build/                       # All build artifacts
+├── workspace/                   # All build artifacts
 │   ├── cores/                   # Fetched source code
 │   ├── logs/                    # Build logs
 │   ├── dist/                    # Packaged zips
@@ -258,10 +258,10 @@ LessUI-Cores/
 ## Output
 
 Cores are built as `.so` files:
-- `build/cortex-a53/*.so` - Individual cores
-- `build/dist/linux-cortex-a53.zip` - Distribution package
-- `build/cores/` - Fetched source code
-- `build/logs/` - Build logs
+- `workspace/cortex-a53/*.so` - Individual cores
+- `workspace/dist/linux-cortex-a53.zip` - Distribution package
+- `workspace/cores/` - Fetched source code
+- `workspace/logs/` - Build logs
 
 ## Requirements
 

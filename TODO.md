@@ -43,7 +43,7 @@ ppsspp:
   cmake_opts:
     - "-DUSE_FFMPEG=ON"
     - "-DUSE_SYSTEM_FFMPEG=ON"
-  so_file: "build/lib/ppsspp_libretro.so"
+  so_file: "workspace/lib/ppsspp_libretro.so"
 ```
 
 **lib/recipe_generator.rb** - Merge cmake overrides instead of replacing:
@@ -62,7 +62,7 @@ ppsspp:
 
 **Status:** ❌ **DISABLED** (commented out in systems.yml)
 
-**Root Cause:** Language API source files (`src/api/lua.c`, `squirrel.c`, etc.) have hardcoded `#include` statements for demo cart binary data files (e.g., `#include "../build/assets/luademo.tic.dat"`). While these .dat files are committed to git, the build is fragile outside Buildroot.
+**Root Cause:** Language API source files (`src/api/lua.c`, `squirrel.c`, etc.) have hardcoded `#include` statements for demo cart binary data files (e.g., `#include "../workspace/assets/luademo.tic.dat"`). While these .dat files are committed to git, the workspace is fragile outside Buildroot.
 
 **Issues:**
 - Demo carts embedded as binary data via #include in C source
@@ -74,7 +74,7 @@ ppsspp:
 
 **Useful infrastructure added:**
 - ✅ Patching system (`apply_patches()` in `core_builder.rb`)
-- ✅ Git-aware cmake cleaning (preserves tracked files in `build/`)
+- ✅ Git-aware cmake cleaning (preserves tracked files in `workspace/`)
 - ✅ Patch documentation (`patches/README.md`)
 
 ---
@@ -120,7 +120,7 @@ rosetta error: Rosetta is only intended to run on Apple Silicon with a macOS hos
 ## Build System Status
 
 ✅ Knulli submodule integration working
-✅ Directory restructure complete (`build/` consolidation)
+✅ Directory restructure complete (`workspace/` consolidation)
 ✅ systems.yml-driven core selection working
 ✅ Recipe generation from Knulli working
 ✅ Cross-compilation for all 4 CPU families working
