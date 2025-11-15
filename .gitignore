@@ -1,11 +1,13 @@
-# Build output
-build/
-dist/
+# Build output (everything under workspace/)
+workspace/
 
-# libretro-super working directories
+# libretro-super working directories (legacy)
 libretro-super/libretro-*/
 libretro-super/dist/
 libretro-super/log/
+
+# Logs
+*.log
 
 # Syncthing
 .stignore
@@ -15,4 +17,3 @@ libretro-super/log/
 
 # macOS
 .DS_Store
-cores/

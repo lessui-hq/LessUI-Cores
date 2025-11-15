@@ -1,0 +1,29 @@
+# Cores for cortex-a7 - Generated from systems.yml
+# Generated: 2025-11-14 21:31:04 -0800
+# Systems: 30 | Cores: 25
+
+a5200
+beetle-pce-fast
+beetle-vb
+bluemsx
+fake08
+fbalpha
+fbneo
+fceumm
+fuse
+gambatte
+genesisplusgx
+gpsp
+handy
+mgba
+pcsx
+picodrive
+pocketsnes
+pokemini
+prosystem
+race
+scummvm
+stella2014
+tic80
+vecx
+vice

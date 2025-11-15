@@ -34,10 +34,13 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 	python \
 	python3 \
 	python3-pip \
+	ruby \
+	ruby-dev \
 	ccache \
 	autoconf \
 	automake \
 	libtool \
+	jq \
 	zlib1g-dev \
 	zlib1g-dev:armhf \
 	zlib1g-dev:arm64 \
@@ -57,17 +60,65 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 	g++-aarch64-linux-gnu \
 	libgl1-mesa-dev:armhf \
 	libgl1-mesa-dev:arm64 \
+	libexpat1-dev \
+	libicu-dev \
+	libsdl2-dev \
+	libsdl2-ttf-dev \
+	libavcodec-dev \
+	libavdevice-dev \
+	libavfilter-dev \
+	libavformat-dev \
+	libavutil-dev \
+	libswresample-dev \
+	libswscale-dev \
+	libpostproc-dev \
 	&& rm -rf /var/lib/apt/lists/*
+
+# Build liblcf from source (needed for easyrpg, uses system cmake 3.13)
+RUN cd /tmp && \
+    git clone https://github.com/EasyRPG/liblcf.git && \
+    cd liblcf && \
+    git checkout 0.8 && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr && \
+    make -j4 && \
+    make install && \
+    cd / && rm -rf /tmp/liblcf
+
+# Upgrade CMake to 3.20+ (Debian Buster has 3.13.4, but ppsspp needs 3.16+)
+# Detect host architecture and download the appropriate CMake binary
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        CMAKE_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        CMAKE_ARCH="aarch64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    echo "Installing CMake for $CMAKE_ARCH" && \
+    wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0-linux-${CMAKE_ARCH}.tar.gz && \
+    tar -xzf cmake-3.20.0-linux-${CMAKE_ARCH}.tar.gz -C /opt && \
+    ln -sf /opt/cmake-3.20.0-linux-${CMAKE_ARCH}/bin/cmake /usr/local/bin/cmake && \
+    ln -sf /opt/cmake-3.20.0-linux-${CMAKE_ARCH}/bin/ctest /usr/local/bin/ctest && \
+    ln -sf /opt/cmake-3.20.0-linux-${CMAKE_ARCH}/bin/cpack /usr/local/bin/cpack && \
+    rm cmake-3.20.0-linux-${CMAKE_ARCH}.tar.gz
 
 # Verify build environment
 RUN echo "=== Build Environment ===" && \
     uname -m && \
     gcc --version | head -1 && \
+    cmake --version | head -1 && \
+    ruby --version && \
     echo "" && \
     echo "=== ARM Cross-Compilers ===" && \
     arm-linux-gnueabihf-gcc --version | head -1 && \
     aarch64-linux-gnu-gcc --version | head -1
 
 WORKDIR /workspace
+
+# Configure git to avoid credential issues with public repos
+RUN git config --global credential.helper "" && \
+    git config --global http.postBuffer 524288000 && \
+    git config --global core.compression 0
 
 CMD ["/bin/bash"]
