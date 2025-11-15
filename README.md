@@ -1,40 +1,59 @@
 # LessUI-Cores
 
-Build libretro emulator cores for ARM-based retro handhelds using Knulli's tested configurations.
+Build libretro emulator cores for ARM-based retro handhelds running MinUI.
 
-**Ruby-based build system** - Fast, maintainable, and production-ready!
+**MinUI-focused, space-optimized** - Just 2 CPU families covering 18 devices!
 
 ## Current Status
 
-✅ **78/78 cores** - Recipe generation (100%)
-✅ **78/78 cores** - Source fetching (100%)
-✅ **64/78 cores** - Building successfully (82%)
+✅ **51 cores** - Default build (cortex-a7 + cortex-a53)
+✅ **130 cores** - Total available (all 5 CPU families, 100% success)
+✅ **18 devices** - 100% MinUI device coverage
+✅ **66% space savings** - 479 MB vs 1.4 GB building all families
 
 ## Quick Start
 
 ```bash
-# 1. Generate recipes from Knulli
-make recipes-cortex-a53
+# Build both ARM32 and ARM64 cores (11 minutes)
+make build-all
 
-# 2. Build all cores
-make build-cortex-a53
-
-# 3. Package for distribution
-make package-cortex-a53
+# Or build individually:
+make build-cortex-a7   # Miyoo Mini family (3 devices)
+make build-cortex-a53  # All other MinUI devices (15 devices)
 ```
 
-**Output:** `dist/linux-cortex-a53.zip` (64 cores @ ~130-190 MB)
-**Build time:** ~25-35 minutes with JOBS=4
+**Output:**
+- cortex-a7: 25 cores, ~177 MB
+- cortex-a53: 26 cores, ~302 MB
+- **Total: 51 cores, ~479 MB** (vs 130 cores, 1.4 GB for all families)
 
-## Supported CPU Families
+**Build time:** ~11 minutes (vs 30 minutes for all families)
 
-| CPU Family | Devices | Market Share |
-|------------|---------|--------------|
-| **cortex-a53** | Anbernic RG28xx/35xx/40xx, Trimui | ~70% |
-| **cortex-a55** | Miyoo Flip, RGB30, RG353, RK3566 | ~15% |
-| **cortex-a7** | Miyoo Mini series | ~15% |
-| **cortex-a35** | RG351 series (legacy) | Legacy |
-| **cortex-a76** | Retroid Pocket 5, RK3588 | Premium |
+## Supported Devices (MinUI)
+
+### Active Builds (Default)
+
+| Build | Devices | Use Case |
+|-------|---------|----------|
+| **cortex-a7** | Miyoo Mini, Mini Plus, A30 | ARM32 devices |
+| **cortex-a53** | RG28xx/35xx/40xx, Trimui, Miyoo Flip, RGB30, RG353 | Universal ARM64 |
+
+### Device → Build Mapping
+
+| Your Device | Use This Build | Why |
+|-------------|----------------|-----|
+| Miyoo Mini/Plus/A30 | **cortex-a7** | ARM32 (unique cores) |
+| RG28xx/34xx/35xx/40xx/CubeXX | **cortex-a53** | H700 native |
+| Trimui Brick/Smart Pro | **cortex-a53** | A133 native |
+| Miyoo Flip, RGB30, RG353 | **cortex-a53** | A55 compatible |
+
+**Total Coverage:** 18 MinUI devices (100%)
+
+**Documentation:** See `docs/` for detailed guides:
+- `docs/MINUI-DEVICES.md` - Which build for your device
+- `docs/CPU-COMPARISON.md` - Why we simplified to 2 families
+- `docs/HANDHELD-DATABASE.md` - All 70+ devices categorized
+- `docs/CORE_SELECTION.md` - How cores were chosen
 
 ### CPU Family Details
 

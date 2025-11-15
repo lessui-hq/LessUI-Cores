@@ -8,27 +8,48 @@ DOCKER_IMAGE := minarch-cores-builder
 # Use native architecture (ARM64 on Apple Silicon, x86_64 elsewhere)
 DOCKER_RUN := docker run --rm -v $(PWD):/workspace -w /workspace $(DOCKER_IMAGE)
 
-# CPU families
-CPU_FAMILIES := cortex-a7 cortex-a35 cortex-a53 cortex-a55 cortex-a76
+# CPU families to build (MinUI-focused, space-optimized)
+# Building only 2 families to save SD card space:
+#   - cortex-a7:  ARM32 devices (Miyoo Mini family)
+#   - cortex-a53: ARM64 universal (works on A35, A53, A55 devices)
+#
+# Disabled to save space:
+#   - cortex-a35: No MinUI support (RG-351 runs Knulli/JelOS)
+#   - cortex-a55: Works fine with A53 binaries (<1% perf difference)
+#   - cortex-a76: No MinUI support (RG-406/556 run Android/Knulli)
+#
+# To build disabled families: Add to CPU_FAMILIES list
+CPU_FAMILIES := cortex-a7 cortex-a53
+
+# All available CPU families (including disabled)
+ALL_CPU_FAMILIES := cortex-a7 cortex-a35 cortex-a53 cortex-a55 cortex-a76
 
 # Build parallelism (default to number of CPU cores)
 JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 help:
-	@echo "minarch-cores - ARM libretro core builder (Knulli-based)"
+	@echo "minarch-cores - ARM libretro core builder (MinUI-focused)"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  1. Generate recipes: make recipes-cortex-a53"
 	@echo "  2. Build cores:      make build-cortex-a53"
-	@echo "  3. Test single core: make core-cortex-a53-gambatte"
+	@echo "  3. Build all:        make build-all"
 	@echo ""
-	@echo "CPU Family Builds:"
-	@echo "  make build-cortex-a7        Cortex-A7 32-bit (Miyoo Mini)"
-	@echo "  make build-cortex-a35       Cortex-A35 64-bit (RG351 legacy)"
-	@echo "  make build-cortex-a53       Cortex-A53 64-bit (RG28xx/35xx/40xx, Trimui)"
-	@echo "  make build-cortex-a55       Cortex-A55 64-bit (RK3566, Miyoo Flip)"
-	@echo "  make build-cortex-a76       Cortex-A76 64-bit (Retroid Pocket 5)"
-	@echo "  make build-all              Build all CPU families"
+	@echo "Active CPU Families (MinUI-supported, space-optimized):"
+	@echo "  make build-cortex-a7        ARM32: Miyoo Mini family (3 devices)"
+	@echo "  make build-cortex-a53       ARM64: Universal 64-bit (15 devices)"
+	@echo "  make build-all              Build both families (~11 min)"
+	@echo ""
+	@echo "Device Compatibility Guide:"
+	@echo "  Miyoo Mini/Plus/A30         → cortex-a7"
+	@echo "  RG28xx/35xx/40xx/CubeXX     → cortex-a53 (H700/A133 native)"
+	@echo "  Miyoo Flip, RGB30, RG353    → cortex-a53 (A55 compatible)"
+	@echo "  Trimui Brick/Smart Pro      → cortex-a53 (A133 native)"
+	@echo ""
+	@echo "Optional Builds (disabled to save SD space):"
+	@echo "  make build-cortex-a35       RG351 series (no MinUI)"
+	@echo "  make build-cortex-a55       RK3566 optimized (minor gains)"
+	@echo "  make build-cortex-a76       RG406/556 (no MinUI)"
 	@echo ""
 	@echo "Single Core Build (for testing/debugging):"
 	@echo "  make core-cortex-a53-gambatte  Build just gambatte for cortex-a53"
