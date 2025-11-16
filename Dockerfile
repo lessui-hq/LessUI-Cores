@@ -1,14 +1,9 @@
 # Docker image for building libretro cores
 # Uses Debian Buster (GCC 8.3.0, glibc 2.28) for maximum device compatibility
 # This is the DEFAULT/ACTIVE Dockerfile
-FROM debian:buster
+FROM debian/eol:buster-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Fix archived Debian repositories (Buster is archived)
-RUN echo "deb http://archive.debian.org/debian buster main contrib non-free" > /etc/apt/sources.list && \
-    echo "deb http://archive.debian.org/debian-security buster/updates main" >> /etc/apt/sources.list && \
-    echo "Acquire::Check-Valid-Until false;" > /etc/apt/apt.conf.d/99no-check-valid-until
 
 # Enable multiarch for ARM libraries
 RUN dpkg --add-architecture armhf && \
