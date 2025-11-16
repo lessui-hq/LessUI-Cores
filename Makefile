@@ -64,9 +64,10 @@ help:
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make list-cores             List available cores (131 from Knulli)"
-	@echo "  make clean-cores            Clean .o/.a/.so artifacts (run between CPU builds!)"
-	@echo "  make clean-cortex-a53       Clean specific build"
-	@echo "  make clean                  Clean everything"
+	@echo "  make clean                  Clean build outputs (keeps downloaded cores)"
+	@echo "  make clean-artifacts        Clean .o/.a/.so from cores/ (keeps source code)"
+	@echo "  make clean-cores            Delete cores/ directory (forces re-download)"
+	@echo "  make clean-cortex-a53       Clean specific CPU family build"
 	@echo "  make shell                  Open shell in build container"
 	@echo ""
 	@echo "Device Guide:"
@@ -202,8 +203,8 @@ clean-%:
 	@echo "✓ Cleaned $*"
 
 # Clean build artifacts from cores (IMPORTANT: Run between CPU family builds!)
-.PHONY: clean-cores
-clean-cores:
+.PHONY: clean-artifacts
+clean-artifacts:
 	@echo "=== Cleaning build artifacts from cores directories ==="
 	@echo "Removing .o files..."
 	find output/cores -name "*.o" -type f -delete 2>/dev/null || true
@@ -217,6 +218,14 @@ clean-cores:
 	find output/cores -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
 	find output/cores -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
 	@echo "✓ Cleaned $(shell find output/cores -name '*.o' -o -name '*.a' -o -name '*.so' 2>/dev/null | wc -l) artifact files"
+
+# Clean downloaded core sources
+.PHONY: clean-cores
+clean-cores:
+	@echo "=== Cleaning downloaded core sources ==="
+	-rm -rf cores
+	@echo "✓ Removed cores/ directory"
+	@echo "Note: Core sources will be re-downloaded on next build"
 
 # Clean everything
 clean:
