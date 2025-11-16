@@ -4,6 +4,9 @@ output/
 # Downloaded core sources
 cores/
 
+# Legacy build directories
+build/
+
 # libretro-super working directories (legacy)
 libretro-super/libretro-*/
 libretro-super/dist/

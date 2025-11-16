@@ -1,7 +1,7 @@
 # minarch-cores - Build libretro cores using Knulli definitions
 # CPU family-based builds for optimal performance
 
-.PHONY: help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test
+.PHONY: help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test update-recipes-% update-recipes-all
 
 # Docker configuration
 DOCKER_IMAGE := minarch-cores-builder
@@ -66,6 +66,12 @@ help:
 	@echo "  make clean-cortex-a53       Clean specific CPU family build"
 	@echo "  make shell                  Open shell in build container"
 	@echo "  make release                Create git flow release and trigger build"
+	@echo ""
+	@echo "Recipe Management:"
+	@echo "  make update-recipes-cortex-a53      Check for core updates (dry-run)"
+	@echo "  make update-recipes-cortex-a53 LIVE=1  Apply core updates"
+	@echo "  make update-recipes-all             Check all families for updates"
+	@echo "  make update-recipes-all LIVE=1      Update all families"
 	@echo ""
 	@echo "Device Guide:"
 	@echo "  Anbernic RG28xx/35xx/40xx, Trimui → cortex-a53"
@@ -230,3 +236,31 @@ test:
 .PHONY: release
 release:
 	@./scripts/release
+
+# Update recipe commit hashes to latest versions
+.PHONY: update-recipes-%
+update-recipes-%:
+	@echo "=== Checking for updates: $* ==="
+	@if [ "$(LIVE)" = "1" ]; then \
+		./scripts/update-recipes $*; \
+	else \
+		./scripts/update-recipes $* --dry-run; \
+	fi
+
+# Update all recipe families
+.PHONY: update-recipes-all
+update-recipes-all:
+	@echo "=== Checking all CPU families for updates ==="
+	@for family in $(CPU_FAMILIES); do \
+		echo ""; \
+		echo "--- $$family ---"; \
+		if [ "$(LIVE)" = "1" ]; then \
+			./scripts/update-recipes $$family; \
+		else \
+			./scripts/update-recipes $$family --dry-run; \
+		fi; \
+	done
+	@if [ "$(LIVE)" != "1" ]; then \
+		echo ""; \
+		echo "To apply updates, run: make update-recipes-all LIVE=1"; \
+	fi

@@ -1,0 +1,164 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Updates recipe commit hashes to latest from their repositories
+# Usage: ./scripts/update-recipes <cpu-family> [--dry-run] [--core=<name>]
+
+require 'yaml'
+require 'open3'
+require 'optparse'
+
+class RecipeUpdater
+  RECIPE_DIR = 'recipes/linux'
+
+  def initialize(cpu_family, dry_run: false, core: nil)
+    @cpu_family = cpu_family
+    @recipe_file = "#{RECIPE_DIR}/#{cpu_family}.yml"
+    @dry_run = dry_run
+    @target_core = core
+
+    unless File.exist?(@recipe_file)
+      puts "Error: Recipe file not found: #{@recipe_file}"
+      exit 1
+    end
+  end
+
+  def run
+    puts "Updating recipes for #{@cpu_family}..."
+    puts "Mode: #{@dry_run ? 'DRY RUN' : 'LIVE UPDATE'}"
+    puts
+
+    # Read recipe file preserving formatting
+    recipe_content = File.read(@recipe_file)
+    recipes = YAML.load(recipe_content)
+
+    updates = []
+
+    recipes.each do |core_name, config|
+      # Skip if targeting specific core and this isn't it
+      next if @target_core && core_name != @target_core
+
+      repo = config['repo']
+      current_commit = config['commit']
+
+      print "Checking #{core_name.ljust(20)} (#{repo})... "
+
+      latest_commit = fetch_latest_commit(repo)
+
+      if latest_commit.nil?
+        puts "❌ Failed to fetch"
+        next
+      end
+
+      if latest_commit == current_commit
+        puts "✅ Up to date (#{current_commit[0..7]})"
+      else
+        puts "🔄 Update available"
+        puts "   Current: #{current_commit[0..7]}"
+        puts "   Latest:  #{latest_commit[0..7]}"
+        updates << { core: core_name, old: current_commit, new: latest_commit }
+      end
+    end
+
+    if updates.empty?
+      puts
+      puts "All cores are up to date!"
+      return
+    end
+
+    puts
+    puts "Summary: #{updates.size} core(s) need updating"
+    puts
+
+    if @dry_run
+      puts "Dry run mode - no changes made"
+      puts "Run without --dry-run to apply updates"
+      return
+    end
+
+    # Apply updates by replacing commit hashes in place
+    updated_content = recipe_content
+    updates.each do |update|
+      # Use regex to replace commit while preserving formatting
+      old_line = /^(\s+commit:\s+)#{Regexp.escape(update[:old])}$/
+      new_line = "\\1#{update[:new]}"
+      updated_content.sub!(old_line, new_line)
+    end
+
+    # Write updated content
+    File.write(@recipe_file, updated_content)
+
+    puts "✅ Updated #{updates.size} core(s) in #{@recipe_file}"
+    puts
+    puts "Updated cores:"
+    updates.each do |update|
+      puts "  - #{update[:core]}: #{update[:old][0..7]} → #{update[:new][0..7]}"
+    end
+  end
+
+  private
+
+  def fetch_latest_commit(repo)
+    url = "https://github.com/#{repo}.git"
+
+    # Try to get HEAD first (default branch)
+    cmd = "git ls-remote #{url} HEAD 2>/dev/null"
+    stdout, stderr, status = Open3.capture3(cmd)
+
+    if status.success? && !stdout.empty?
+      return stdout.split("\t").first
+    end
+
+    # Fallback to master
+    cmd = "git ls-remote #{url} refs/heads/master 2>/dev/null"
+    stdout, stderr, status = Open3.capture3(cmd)
+
+    if status.success? && !stdout.empty?
+      return stdout.split("\t").first
+    end
+
+    # Fallback to main
+    cmd = "git ls-remote #{url} refs/heads/main 2>/dev/null"
+    stdout, stderr, status = Open3.capture3(cmd)
+
+    if status.success? && !stdout.empty?
+      return stdout.split("\t").first
+    end
+
+    nil
+  end
+end
+
+# Parse command line options
+options = { dry_run: false, core: nil }
+cpu_family = nil
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: update-recipes <cpu-family> [options]"
+  opts.on("--dry-run", "Show what would be updated without making changes") do
+    options[:dry_run] = true
+  end
+  opts.on("--core=NAME", "Only update specific core") do |name|
+    options[:core] = name
+  end
+  opts.on("-h", "--help", "Show this help") do
+    puts opts
+    exit
+  end
+end.parse!
+
+cpu_family = ARGV[0]
+
+unless cpu_family
+  puts "Error: CPU family required"
+  puts "Usage: update-recipes <cpu-family> [--dry-run] [--core=<name>]"
+  puts
+  puts "Examples:"
+  puts "  update-recipes cortex-a53"
+  puts "  update-recipes cortex-a53 --dry-run"
+  puts "  update-recipes cortex-a53 --core=gambatte"
+  exit 1
+end
+
+updater = RecipeUpdater.new(cpu_family, **options)
+updater.run

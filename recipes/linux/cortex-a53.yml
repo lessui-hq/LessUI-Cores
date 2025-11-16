@@ -42,7 +42,7 @@ atari800:
 
 beetle-lynx:
   repo: libretro/beetle-lynx-libretro
-  commit: 7fead71b49e0f08be5c4d4224fea73c6174763bf
+  commit: efd1797c7aa5a83c354507b1b61ac24222ebaa58
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -51,7 +51,7 @@ beetle-lynx:
 
 beetle-pce-fast:
   repo: libretro/beetle-pce-fast-libretro
-  commit: cfbb0946f79de33bc615d0a079e1a92f1454c3e3
+  commit: 7e9b257b8a591cb7e00f9e55371edba19db9799c
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -78,7 +78,7 @@ beetle-vb:
 
 bluemsx:
   repo: libretro/blueMSX-libretro
-  commit: 824690b5ac997ec9694e8db1595186459bb3b652
+  commit: 036376d6679c9e153712dbbb3fdca774afc49706
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -97,7 +97,7 @@ fake08:
 
 fbneo:
   repo: libretro/FBNeo
-  commit: d72f49f4a45dbfc5a855956d1a75ce2d0601c1c5
+  commit: 2f41022002337ed20186144bbddb2d53392fab85
   build_type: make
   makefile: Makefile
   build_dir: src/burner/libretro
@@ -106,7 +106,7 @@ fbneo:
 
 fceumm:
   repo: libretro/libretro-fceumm
-  commit: 63643ba02c8eaea15dbe167ef907f3da7a3e6fd7
+  commit: 5cd4a43e16a7f3cd35628d481c347a0a98cfdfa2
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -115,7 +115,7 @@ fceumm:
 
 flycast:
   repo: flyinghead/flycast
-  commit: v2.0
+  commit: 4747e6190899949bafd3391b3ba33b8e4c37219c
   build_type: cmake
   so_file: build/flycast_libretro.so
   submodules: true
@@ -127,7 +127,7 @@ flycast:
 
 fuse:
   repo: libretro/fuse-libretro
-  commit: 847dbbd6f787823ac9a5dfacdd68ab181063374e
+  commit: cad85b7b1b864c65734f71aa4a510b6f6536881c
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -136,7 +136,7 @@ fuse:
 
 gambatte:
   repo: libretro/gambatte-libretro
-  commit: 4041d5a6c474d2d01b4cb1e81324b06b51d0147b
+  commit: 6924c76ba03dadddc6e97fa3660f3d3bc08faa94
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -145,7 +145,7 @@ gambatte:
 
 gpsp:
   repo: libretro/gpsp
-  commit: 4caf7a167d159866479ea94d6b2d13c26ceb3e72
+  commit: 74db5e5c73020626a1118b97d3735b5636d65d9d
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -154,7 +154,7 @@ gpsp:
 
 melonds:
   repo: libretro/melonds
-  commit: c6488c88cb4c7583dbcd61609e0eef441572fae8
+  commit: 7a3c11ff970cd36ca806961fae6db94b30dd5401
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -181,7 +181,7 @@ mame2003-plus:
 
 mupen64plus-next:
   repo: libretro/mupen64plus-libretro-nx
-  commit: c7cd8edcd015ddcbd4a2e984573c9c1d1ddd0b6e
+  commit: 680e033fc8ed1a49df7b156d97164e0050ee13bc
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -190,7 +190,7 @@ mupen64plus-next:
 
 pcsx:
   repo: libretro/pcsx_rearmed
-  commit: 9aefd427e47e1cdf94578e1913054bc14a44bab6
+  commit: 228c14e10e9a8fae0ead8adf30daad2cdd8655b9
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -199,7 +199,7 @@ pcsx:
 
 picodrive:
   repo: libretro/picodrive
-  commit: ad93670449a28825d4b2cebf2eeff72cf03377a9
+  commit: 5b8cdea5cb06fb8d3d8ce7b88695f8dd00b4ac12
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -209,7 +209,7 @@ picodrive:
 
 pokemini:
   repo: libretro/PokeMini
-  commit: 9bf450887026d9b92d4f9432b5d2a5ed749a35e2
+  commit: 19095803f1434eb980db6e4004187a4b786e20b6
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -218,7 +218,7 @@ pokemini:
 
 ppsspp:
   repo: hrydgard/ppsspp
-  commit: v1.18.1
+  commit: a477ae023fe634e99de05c8baa101630b70e3518
   build_type: cmake
   so_file: build/lib/ppsspp_libretro.so
   submodules: true
@@ -245,7 +245,7 @@ ppsspp:
 
 prosystem:
   repo: libretro/prosystem-libretro
-  commit: 4202ac5bdb2ce1a21f84efc0e26d75bb5aa7e248
+  commit: acae250da8d98b8b9707cd499e2a0bf6d8500652
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -254,7 +254,7 @@ prosystem:
 
 race:
   repo: libretro/RACE
-  commit: f65011e6639ccbbbb44b6ffa63ca50c070475df4
+  commit: 171950ea64c96ead503340ed60fa7ba18f56325c
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -263,7 +263,7 @@ race:
 
 scummvm:
   repo: libretro/scummvm
-  commit: 6fa7403b8b1b6e18e3a3d02120b38aad6a73ad26
+  commit: 686cdd13719b92554fa46b264c512ca7deec7a96
   build_type: make
   makefile: Makefile
   build_dir: backends/platform/libretro
@@ -284,7 +284,7 @@ snes9x2005:
 
 stella:
   repo: stella-emu/stella
-  commit: 4557099e5d7a0c0b02424ea85d2a4b093911e048
+  commit: 7c4e3b2f8c027ae54a3ad9c90d7f00fccde15de9
   build_type: make
   makefile: Makefile
   build_dir: src/os/libretro
@@ -293,7 +293,7 @@ stella:
 
 supafaust:
   repo: libretro/supafaust
-  commit: 75c658cce454e58ae04ea252f53a31c60d61548e
+  commit: e25f66765938d33f9ad5850e8d6cd597e55b7299
   build_type: make
   makefile: Makefile
   build_dir: "."
@@ -302,7 +302,7 @@ supafaust:
 
 vecx:
   repo: libretro/libretro-vecx
-  commit: 56a99fa08a7601b304d752188ca573febf26faeb
+  commit: 841229a6a81a0461d08af6488f252dcec5266c6a
   build_type: make
   makefile: Makefile.libretro
   build_dir: "."
@@ -311,7 +311,7 @@ vecx:
 
 vice:
   repo: libretro/vice-libretro
-  commit: 86eca8b0a64aa4ca442e696e75d43de19b9556d3
+  commit: e9f8ac034ddef3025f0567768f7af8219f7cfdb8
   build_type: make
   makefile: Makefile
   build_dir: "."
