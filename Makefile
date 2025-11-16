@@ -115,12 +115,12 @@ build-%: docker-build
 	@CORE_COUNT=$$(jq 'length' recipes/linux/$*.json); \
 	echo "Building $$CORE_COUNT cores for $*"
 	@echo "This will take 1-3 hours..."
-	@mkdir -p workspace/$* workspace/cores workspace/logs
-	$(DOCKER_RUN) ruby scripts/build-all $* -j $(JOBS) -l workspace/logs/$*-build.log
+	@mkdir -p output/$* output/cores output/logs
+	$(DOCKER_RUN) ruby scripts/build-all $* -j $(JOBS) -l output/logs/$*-build.log
 	@echo ""
 	@echo "✓ Build complete for $*"
-	@echo "  Cores built: $$(ls workspace/$*/*.so 2>/dev/null | wc -l)"
-	@du -sh workspace/$* 2>/dev/null || true
+	@echo "  Cores built: $$(ls output/$*/*.so 2>/dev/null | wc -l)"
+	@du -sh output/$* 2>/dev/null || true
 
 # Build all CPU families
 .PHONY: build-all
@@ -128,11 +128,11 @@ build-all: $(addprefix build-,$(CPU_FAMILIES))
 	@echo ""
 	@echo "=== Build Summary ==="
 	@for family in $(CPU_FAMILIES); do \
-		echo "  $$family: $$(ls workspace/$$family/*.so 2>/dev/null | wc -l) cores"; \
+		echo "  $$family: $$(ls output/$$family/*.so 2>/dev/null | wc -l) cores"; \
 	done
 	@echo ""
 	@echo "Total size:"
-	@du -sh workspace/* 2>/dev/null || true
+	@du -sh output/* 2>/dev/null || true
 
 # Build a single core (for testing/debugging)
 # Usage: make core-cortex-a53-gambatte
@@ -152,12 +152,12 @@ core-%: docker-build
 		echo "  make recipes-$$FAMILY"; \
 		exit 1; \
 	fi; \
-	mkdir -p workspace/$$FAMILY workspace/cores workspace/logs; \
+	mkdir -p output/$$FAMILY output/cores output/logs; \
 	$(DOCKER_RUN) ruby scripts/build-one $$FAMILY $$CORE -j $(JOBS); \
-	if [ -f workspace/$$FAMILY/$${CORE}_libretro.so ]; then \
+	if [ -f output/$$FAMILY/$${CORE}_libretro.so ]; then \
 		echo ""; \
-		echo "✓ Built successfully: workspace/$$FAMILY/$${CORE}_libretro.so"; \
-		ls -lh workspace/$$FAMILY/$${CORE}_libretro.so | awk '{print "  Size: " $$5}'; \
+		echo "✓ Built successfully: output/$$FAMILY/$${CORE}_libretro.so"; \
+		ls -lh output/$$FAMILY/$${CORE}_libretro.so | awk '{print "  Size: " $$5}'; \
 	else \
 		echo ""; \
 		echo "✗ Build failed"; \
@@ -167,21 +167,21 @@ core-%: docker-build
 # Generic package target
 .PHONY: package-%
 package-%:
-	@if [ ! -d workspace/$* ] || [ -z "$$(ls workspace/$*/*.so 2>/dev/null)" ]; then \
+	@if [ ! -d output/$* ] || [ -z "$$(ls output/$*/*.so 2>/dev/null)" ]; then \
 		echo "ERROR: No cores built for $*. Run: make build-$*"; \
 		exit 1; \
 	fi
 	@echo "=== Packaging $* cores ==="
-	@mkdir -p workspace/dist
-	@cd workspace/$* && zip -q ../dist/linux-$*.zip *.so
-	@echo "✓ Created workspace/dist/linux-$*.zip ($$(ls -lh workspace/dist/linux-$*.zip | awk '{print $$5}'))"
+	@mkdir -p output/dist
+	@cd output/$* && zip -q ../dist/linux-$*.zip *.so
+	@echo "✓ Created output/dist/linux-$*.zip ($$(ls -lh output/dist/linux-$*.zip | awk '{print $$5}'))"
 
 # Package all families
 .PHONY: package-all
 package-all: $(addprefix package-,$(CPU_FAMILIES))
 	@echo ""
 	@echo "=== Packaging Summary ==="
-	@ls -lh workspace/dist/*.zip 2>/dev/null | awk '{print "  " $$9 " - " $$5}'
+	@ls -lh output/dist/*.zip 2>/dev/null | awk '{print "  " $$9 " - " $$5}'
 
 # List available cores
 list-cores:
@@ -197,8 +197,8 @@ list-cores:
 .PHONY: clean-%
 clean-%:
 	@echo "=== Cleaning $* ==="
-	rm -rf workspace/$*
-	rm -f workspace/dist/linux-$*.zip
+	rm -rf output/$*
+	rm -f output/dist/linux-$*.zip
 	@echo "✓ Cleaned $*"
 
 # Clean build artifacts from cores (IMPORTANT: Run between CPU family builds!)
@@ -206,22 +206,22 @@ clean-%:
 clean-cores:
 	@echo "=== Cleaning build artifacts from cores directories ==="
 	@echo "Removing .o files..."
-	find workspace/cores -name "*.o" -type f -delete 2>/dev/null || true
+	find output/cores -name "*.o" -type f -delete 2>/dev/null || true
 	@echo "Removing .a files..."
-	find workspace/cores -name "*.a" -type f -delete 2>/dev/null || true
+	find output/cores -name "*.a" -type f -delete 2>/dev/null || true
 	@echo "Removing .so files..."
-	find workspace/cores -name "*.so" -type f -delete 2>/dev/null || true
+	find output/cores -name "*.so" -type f -delete 2>/dev/null || true
 	@echo "Removing .dylib files..."
-	find workspace/cores -name "*.dylib" -type f -delete 2>/dev/null || true
+	find output/cores -name "*.dylib" -type f -delete 2>/dev/null || true
 	@echo "Removing build directories..."
-	find workspace/cores -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
-	find workspace/cores -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
-	@echo "✓ Cleaned $(shell find workspace/cores -name '*.o' -o -name '*.a' -o -name '*.so' 2>/dev/null | wc -l) artifact files"
+	find output/cores -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
+	find output/cores -type d -name "obj" -exec rm -rf {} + 2>/dev/null || true
+	@echo "✓ Cleaned $(shell find output/cores -name '*.o' -o -name '*.a' -o -name '*.so' 2>/dev/null | wc -l) artifact files"
 
 # Clean everything
 clean:
 	@echo "=== Cleaning all ==="
-	-rm -rf workspace
+	-rm -rf output
 	@echo "✓ Cleaned"
 
 # Open interactive shell in build container
@@ -230,4 +230,4 @@ shell: docker-build
 	@echo "Debian Buster (GCC 8.3.0, glibc 2.28)"
 	@echo "Type 'exit' to return"
 	@echo ""
-	docker run --rm -it -v $(PWD):/workspace -w /workspace $(DOCKER_IMAGE) /bin/bash
+	docker run --rm -it -v $(PWD):/output -w /output $(DOCKER_IMAGE) /bin/bash
