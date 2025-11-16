@@ -1,0 +1,128 @@
+#!/bin/bash
+# Helper script to inspect a new core's build configuration
+# Usage: ./scripts/inspect-core <repo> <commit>
+# Example: ./scripts/inspect-core libretro/libretro-atari800 6a18cb23
+
+set -e
+
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 <repo> <commit>"
+  echo "Example: $0 libretro/libretro-atari800 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b"
+  exit 1
+fi
+
+REPO=$1
+COMMIT=$2
+CORE_NAME=$(basename $REPO | sed 's/^libretro-//')
+
+echo "============================================================"
+echo "Inspecting Core: $CORE_NAME"
+echo "============================================================"
+echo "Repo: $REPO"
+echo "Commit: $COMMIT"
+echo ""
+
+# Fetch to temp directory
+TEMP_DIR=$(mktemp -d)
+TARBALL_URL="https://github.com/${REPO}/archive/${COMMIT}.tar.gz"
+
+echo "→ Downloading..."
+wget -q -O "$TEMP_DIR/core.tar.gz" "$TARBALL_URL" || {
+  echo "✗ Failed to download. Trying git clone..."
+  git clone --quiet --depth 1 "https://github.com/${REPO}.git" "$TEMP_DIR/core"
+  cd "$TEMP_DIR/core"
+  git checkout --quiet "$COMMIT" 2>/dev/null || true
+}
+
+# Extract if tarball
+if [ -f "$TEMP_DIR/core.tar.gz" ]; then
+  mkdir -p "$TEMP_DIR/core"
+  tar -xzf "$TEMP_DIR/core.tar.gz" -C "$TEMP_DIR/core" --strip-components=1
+fi
+
+cd "$TEMP_DIR/core"
+
+echo "→ Analyzing build system..."
+echo ""
+
+# Check for makefiles
+echo "Available Makefiles:"
+find . -maxdepth 3 -name "Makefile*" -type f | sed 's|^\./||' | sort
+echo ""
+
+# Check for CMake
+if [ -f "CMakeLists.txt" ]; then
+  echo "✓ CMake build detected (CMakeLists.txt found)"
+  echo ""
+  echo "Checking for LIBRETRO support..."
+  grep -i "LIBRETRO\|libretro" CMakeLists.txt | head -5 || echo "  (No obvious libretro flag found)"
+  echo ""
+fi
+
+# Check for common build directories
+echo "Common build directories:"
+for dir in . platform/libretro src/libretro src/burner/libretro backends/platform/libretro; do
+  if [ -d "$dir" ]; then
+    echo "  ✓ $dir/"
+    if [ -f "$dir/Makefile" ] || [ -f "$dir/Makefile.libretro" ]; then
+      echo "    → Contains: $(ls $dir/Makefile* 2>/dev/null | tr '\n' ' ')"
+    fi
+  fi
+done
+echo ""
+
+# Try a test build to find .so output
+echo "→ Attempting test build (ARM64)..."
+echo ""
+
+# Prefer Makefile.libretro, fallback to Makefile
+if [ -f "Makefile.libretro" ]; then
+  MAKEFILE="Makefile.libretro"
+  BUILD_DIR="."
+elif [ -f "platform/libretro/Makefile" ]; then
+  MAKEFILE="Makefile"
+  BUILD_DIR="platform/libretro"
+elif [ -f "Makefile" ]; then
+  MAKEFILE="Makefile"
+  BUILD_DIR="."
+else
+  echo "✗ No Makefile found"
+  rm -rf "$TEMP_DIR"
+  exit 1
+fi
+
+cd "$BUILD_DIR"
+echo "Building with: $MAKEFILE in $BUILD_DIR/"
+make -f "$MAKEFILE" platform=unix -j4 2>&1 | tail -20 || true
+
+echo ""
+echo "→ Searching for .so output..."
+find "$TEMP_DIR/core" -name "*_libretro.so" -o -name "*.so" | grep -v ".libs" | head -5
+echo ""
+
+# Generate recipe template
+SO_FILE=$(find "$TEMP_DIR/core" -name "*_libretro.so" 2>/dev/null | head -1)
+if [ -n "$SO_FILE" ]; then
+  SO_NAME=$(basename "$SO_FILE")
+  SO_RELATIVE=$(echo "$SO_FILE" | sed "s|$TEMP_DIR/core/||")
+
+  echo "============================================================"
+  echo "Suggested Recipe Entry:"
+  echo "============================================================"
+  echo "$CORE_NAME:"
+  echo "  repo: $REPO"
+  echo "  commit: $COMMIT"
+  echo "  build_type: make"
+  echo "  makefile: $MAKEFILE"
+  echo "  build_dir: \"$BUILD_DIR\""
+  echo "  platform: unix"
+  echo "  so_file: $SO_RELATIVE"
+  [ -f ".gitmodules" ] && echo "  submodules: true"
+  echo ""
+fi
+
+# Cleanup
+cd /
+rm -rf "$TEMP_DIR"
+
+echo "✓ Inspection complete"

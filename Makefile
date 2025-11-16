@@ -1,7 +1,7 @@
 # minarch-cores - Build libretro cores using Knulli definitions
 # CPU family-based builds for optimal performance
 
-.PHONY: help list-cores recipes-% recipes-all build-% build-all core-% package-% package-all clean-% clean docker-build shell release
+.PHONY: help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test update-recipes-% update-recipes-all
 
 # Docker configuration
 DOCKER_IMAGE := minarch-cores-builder
@@ -23,16 +23,15 @@ CPU_FAMILIES := cortex-a7 cortex-a53 cortex-a55 cortex-a76
 # All available CPU families (including disabled)
 ALL_CPU_FAMILIES := cortex-a7 cortex-a35 cortex-a53 cortex-a55 cortex-a76
 
-# Build parallelism (default to number of CPU cores)
-JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+# Build parallelism (default to 8 jobs for optimal build speed)
+JOBS ?= 8
 
 help:
 	@echo "minarch-cores - ARM libretro core builder (MinUI-focused)"
 	@echo ""
 	@echo "Quick Start:"
-	@echo "  1. Generate recipes: make recipes-cortex-a53"
-	@echo "  2. Build cores:      make build-cortex-a53"
-	@echo "  3. Build all:        make build-all"
+	@echo "  1. Build cores:      make build-cortex-a53"
+	@echo "  2. Build all:        make build-all"
 	@echo ""
 	@echo "Active CPU Families (MinUI-compatible optimized variants):"
 	@echo "  make build-cortex-a7        ARM32: Miyoo Mini family"
@@ -54,15 +53,12 @@ help:
 	@echo "  make core-cortex-a53-gambatte  Build just gambatte for cortex-a53"
 	@echo "  make core-cortex-a53-flycast   Build just flycast for cortex-a53"
 	@echo ""
-	@echo "Recipe Generation:"
-	@echo "  make recipes-cortex-a53     Generate recipes for cortex-a53"
-	@echo "  make recipes-all            Generate all CPU family recipes"
-	@echo ""
 	@echo "Packaging:"
 	@echo "  make package-cortex-a53     Create cortex-a53.zip"
 	@echo "  make package-all            Create all packages"
 	@echo ""
 	@echo "Utilities:"
+	@echo "  make test                   Run RSpec test suite"
 	@echo "  make list-cores             List available cores (131 from Knulli)"
 	@echo "  make clean                  Clean build outputs (keeps downloaded cores)"
 	@echo "  make clean-artifacts        Clean .o/.a/.so from cores/ (keeps source code)"
@@ -70,6 +66,13 @@ help:
 	@echo "  make clean-cortex-a53       Clean specific CPU family build"
 	@echo "  make shell                  Open shell in build container"
 	@echo "  make release                Create git flow release and trigger build"
+	@echo "  make release FORCE=1        Force recreate today's release (deletes existing)"
+	@echo ""
+	@echo "Recipe Management:"
+	@echo "  make update-recipes-cortex-a53      Check for core updates (dry-run)"
+	@echo "  make update-recipes-cortex-a53 LIVE=1  Apply core updates"
+	@echo "  make update-recipes-all             Check all families for updates"
+	@echo "  make update-recipes-all LIVE=1      Update all families"
 	@echo ""
 	@echo "Device Guide:"
 	@echo "  Anbernic RG28xx/35xx/40xx, Trimui → cortex-a53"
@@ -84,21 +87,8 @@ docker-build:
 	docker build -t $(DOCKER_IMAGE) .
 	@echo "✓ Docker image ready"
 
-# Generate recipes for a CPU family
-.PHONY: recipes-%
-recipes-%: docker-build
-	@echo "=== Generating recipes for $* ==="
-	@if [ ! -f config/$*.config ]; then \
-		echo "ERROR: Config not found: config/$*.config"; \
-		echo "Available configs: $(CPU_FAMILIES)"; \
-		exit 1; \
-	fi
-	$(DOCKER_RUN) ruby scripts/generate-recipes $*
-	@echo "✓ Recipes generated: recipes/linux/$*.json"
-
-# Generate all recipes
-.PHONY: recipes-all
-recipes-all: $(addprefix recipes-,$(CPU_FAMILIES))
+# Note: Recipes are now manually maintained YAML files in recipes/linux/
+# No automatic generation - edit recipes/*.yml directly to add/update cores
 
 # Generic build target for any CPU family
 .PHONY: build-%
@@ -109,13 +99,13 @@ build-%: docker-build
 		echo "Available configs: $(CPU_FAMILIES)"; \
 		exit 1; \
 	fi
-	@if [ ! -f recipes/linux/$*.json ]; then \
-		echo "ERROR: Recipe not found. Generate it first:"; \
-		echo "  make recipes-$*"; \
+	@if [ ! -f recipes/linux/$*.yml ]; then \
+		echo "ERROR: Recipe not found: recipes/linux/$*.yml"; \
+		echo "Available recipes: $(CPU_FAMILIES)"; \
 		exit 1; \
 	fi
-	@CORE_COUNT=$$(jq 'length' recipes/linux/$*.json); \
-	echo "Building $$CORE_COUNT cores for $*"
+	@CORE_COUNT=$$(grep -c "^[a-z]" recipes/linux/$*.yml | head -1); \
+	echo "Building cores for $*"
 	@echo "This will take 1-3 hours..."
 	@mkdir -p output/$* output/cores output/logs
 	$(DOCKER_RUN) ruby scripts/build-all $* -j $(JOBS) -l output/logs/$*-build.log
@@ -149,22 +139,12 @@ core-%: docker-build
 		echo "Available configs: $(CPU_FAMILIES)"; \
 		exit 1; \
 	fi; \
-	if [ ! -f recipes/linux/$$FAMILY.json ]; then \
-		echo "ERROR: Recipe not found. Generate it first:"; \
-		echo "  make recipes-$$FAMILY"; \
+	if [ ! -f recipes/linux/$$FAMILY.yml ]; then \
+		echo "ERROR: Recipe not found: recipes/linux/$$FAMILY.yml"; \
 		exit 1; \
 	fi; \
 	mkdir -p output/$$FAMILY output/cores output/logs; \
-	$(DOCKER_RUN) ruby scripts/build-one $$FAMILY $$CORE -j $(JOBS); \
-	if [ -f output/$$FAMILY/$${CORE}_libretro.so ]; then \
-		echo ""; \
-		echo "✓ Built successfully: output/$$FAMILY/$${CORE}_libretro.so"; \
-		ls -lh output/$$FAMILY/$${CORE}_libretro.so | awk '{print "  Size: " $$5}'; \
-	else \
-		echo ""; \
-		echo "✗ Build failed"; \
-		exit 1; \
-	fi
+	$(DOCKER_RUN) ruby scripts/build-one $$FAMILY $$CORE -j $(JOBS)
 
 # Generic package target
 .PHONY: package-%
@@ -242,7 +222,50 @@ shell: docker-build
 	@echo ""
 	docker run --rm -it -v $(PWD):/output -w /output $(DOCKER_IMAGE) /bin/bash
 
+# Run tests
+.PHONY: test
+test:
+	@echo "=== Running RSpec Tests ==="
+	@if ! command -v bundle >/dev/null 2>&1; then \
+		echo "ERROR: bundler not found. Install with: gem install bundler"; \
+		exit 1; \
+	fi
+	@bundle check >/dev/null 2>&1 || bundle install
+	@bundle exec rspec
+
 # Create a git flow release
 .PHONY: release
 release:
-	@./scripts/release
+	@if [ "$(FORCE)" = "1" ]; then \
+		./scripts/release --force; \
+	else \
+		./scripts/release; \
+	fi
+
+# Update recipe commit hashes to latest versions
+.PHONY: update-recipes-%
+update-recipes-%:
+	@echo "=== Checking for updates: $* ==="
+	@if [ "$(LIVE)" = "1" ]; then \
+		./scripts/update-recipes $*; \
+	else \
+		./scripts/update-recipes $* --dry-run; \
+	fi
+
+# Update all recipe families
+.PHONY: update-recipes-all
+update-recipes-all:
+	@echo "=== Checking all CPU families for updates ==="
+	@for family in $(CPU_FAMILIES); do \
+		echo ""; \
+		echo "--- $$family ---"; \
+		if [ "$(LIVE)" = "1" ]; then \
+			./scripts/update-recipes $$family; \
+		else \
+			./scripts/update-recipes $$family --dry-run; \
+		fi; \
+	done
+	@if [ "$(LIVE)" != "1" ]; then \
+		echo ""; \
+		echo "To apply updates, run: make update-recipes-all LIVE=1"; \
+	fi

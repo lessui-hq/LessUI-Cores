@@ -6,6 +6,7 @@ require 'open3'
 require 'thread'
 require_relative 'logger'
 require_relative 'cpu_config'
+require_relative 'command_builder'
 
 # Build individual libretro cores with cross-compilation
 # Handles both Make and CMake builds
@@ -21,6 +22,9 @@ class CoreBuilder
     @built = 0
     @failed = 0
     @skipped = 0
+
+    # Initialize command builder for generating build commands
+    @command_builder = CommandBuilder.new(cpu_config: @cpu_config, parallel: @parallel)
 
     FileUtils.mkdir_p(@output_dir)
   end
@@ -42,14 +46,13 @@ class CoreBuilder
   end
 
   def build_one(name, metadata)
-    repo_name = metadata['repo']
-    build_type = metadata['build_type']
-    core_dir = File.join(@cores_dir, repo_name)
+    build_type = metadata['build_type'] || raise("Missing 'build_type' for #{name}")
+
+    # Core directory is always libretro-{name}
+    core_dir = File.join(@cores_dir, "libretro-#{name}")
 
     unless Dir.exist?(core_dir)
-      log_error(name, "Directory not found: #{core_dir}")
-      @failed += 1
-      return
+      raise "Directory not found: #{core_dir}"
     end
 
     @logger.step("Building #{name} (#{build_type})")
@@ -66,18 +69,19 @@ class CoreBuilder
     # Clean before building to prevent contamination
     clean_before_build(name, build_type, metadata, core_dir)
 
-    case build_type
-    when 'cmake'
-      build_cmake(name, metadata, core_dir)
-    when 'make'
-      build_make(name, metadata, core_dir)
-    else
-      log_error(name, "Unknown build type: #{build_type}")
-      @failed += 1
-    end
+    result = case build_type
+             when 'cmake'
+               build_cmake(name, metadata, core_dir)
+             when 'make'
+               build_make(name, metadata, core_dir)
+             else
+               raise "Unknown build type: #{build_type}"
+             end
+    result
   rescue StandardError => e
     log_error(name, "Build failed: #{e.message}")
     @failed += 1
+    nil
   end
 
   private
@@ -126,46 +130,31 @@ class CoreBuilder
   end
 
   def clean_before_build(name, build_type, metadata, core_dir)
-    # Clean build artifacts to prevent cross-contamination between CPU families
     @logger.detail("  Cleaning previous build artifacts")
 
     Dir.chdir(core_dir) do
       case build_type
       when 'make'
-        # Make-based cores: Use standard 'make clean'
-        build_subdir = metadata['build_dir'] || '.'
-        makefile = metadata['makefile'] || 'Makefile'
+        build_subdir = metadata['build_dir'] || raise("Missing 'build_dir' for #{name}")
+        makefile = metadata['makefile'] || raise("Missing 'makefile' for #{name}")
 
         Dir.chdir(build_subdir) do
-          # Try to run make clean (ignore errors if clean target doesn't exist)
-          platform = metadata['platform'] || @cpu_config.platform
-          system("make -f #{makefile} clean platform=#{platform} 2>/dev/null") || true
+          # Run make clean
+          env = @cpu_config.to_env
+          run_command(env, *@command_builder.make_command(metadata, makefile, clean: true)) rescue nil
 
-          # Also manually remove common artifacts as fallback
-          Dir.glob('*.o').each { |f| File.delete(f) rescue nil }
-          Dir.glob('*.so').each { |f| File.delete(f) rescue nil }
-          Dir.glob('*.a').each { |f| File.delete(f) rescue nil }
+          # Run extra clean commands if specified in recipe (for repos with broken clean targets)
+          if metadata['clean_extra']
+            system(metadata['clean_extra'])
+          end
         end
 
       when 'cmake'
-        # CMake-based cores: Delete build directory carefully
-        # Use git clean if possible to avoid deleting committed files (e.g., TIC-80's build/assets/)
-        if system('git rev-parse --git-dir > /dev/null 2>&1')
-          # Use git clean to remove untracked files in build/, preserving tracked files
-          system('git clean -fd build/ 2>/dev/null') if Dir.exist?('build')
-        else
-          # Fallback: delete entire build directory if not a git repo
-          FileUtils.rm_rf('build') if Dir.exist?('build')
-        end
-
+        # CMake: delete build directory
+        FileUtils.rm_rf('build') if Dir.exist?('build')
         FileUtils.rm_f('CMakeCache.txt')
         FileUtils.rm_f('cmake_install.cmake')
         FileUtils.rm_rf('CMakeFiles')
-
-        # Remove any stray build artifacts
-        Dir.glob('*.so').each { |f| File.delete(f) rescue nil }
-        Dir.glob('**/*.o').each { |f| File.delete(f) rescue nil }
-        Dir.glob('**/*.a').each { |f| File.delete(f) rescue nil }
       end
     end
   rescue StandardError => e
@@ -173,168 +162,74 @@ class CoreBuilder
   end
 
   def build_cmake(name, metadata, core_dir)
+    so_file_path = metadata['so_file'] || raise("Missing 'so_file' for #{name}")
+
     run_prebuild_steps(name, core_dir)
 
     build_dir = File.join(core_dir, 'build')
     FileUtils.mkdir_p(build_dir)
 
-    # Prepare CMake options
-    cmake_opts = metadata['cmake_opts'] || []
-    cmake_opts = cmake_opts.flat_map { |opt| opt.split } # Split combined options
-
-    # Add our cross-compile settings
+    # Use CommandBuilder to generate CMake commands
     env = @cpu_config.to_env
-
-    cmake_opts += [
-      "-DCMAKE_C_COMPILER=#{env['CC']}",
-      "-DCMAKE_CXX_COMPILER=#{env['CXX']}",
-      "-DCMAKE_C_FLAGS=#{env['CFLAGS']}",
-      "-DCMAKE_CXX_FLAGS=#{env['CXXFLAGS']}",
-      "-DCMAKE_SYSTEM_PROCESSOR=#{@cpu_config.arch}",
-      "-DTHREADS_PREFER_PTHREAD_FLAG=ON",
-      "-DCMAKE_BUILD_TYPE=Release"
-    ]
-
-    # Add CMAKE_PREFIX_PATH if set (for dependency finding)
-    if ENV['CMAKE_PREFIX_PATH']
-      cmake_opts += ["-DCMAKE_PREFIX_PATH=#{ENV['CMAKE_PREFIX_PATH']}"]
-    end
 
     # Run CMake
     Dir.chdir(build_dir) do
-      run_command(env, "cmake", "..", *cmake_opts)
-      run_command(env, "make", "-j#{@parallel}")
+      run_command(env, *@command_builder.cmake_configure_command(metadata))
+      run_command(env, *@command_builder.cmake_build_command)
     end
 
-    # Find and copy .so file
-    # For cmake builds, the .so might be in build/ subdirectory
-    so_file = find_so_file(core_dir, name, metadata)
-    if so_file
-      copy_so_file(so_file, name)
-      @built += 1
-    else
-      log_error(name, "No .so file found")
-      @failed += 1
+    # Copy .so file to output (using explicit path from recipe)
+    so_file = File.join(core_dir, so_file_path)
+    unless File.exist?(so_file)
+      raise "Built .so file not found: #{so_file}"
     end
+
+    dest_path = copy_so_file(so_file, name)
+    @built += 1
+    dest_path
   end
 
   def build_make(name, metadata, core_dir)
-    build_subdir = metadata['build_dir'] || '.'
-    makefile = metadata['makefile'] || 'Makefile'
-    # Use recipe platform unless it's a variable reference or null
-    platform = metadata['platform']
-    platform = @cpu_config.platform if platform.nil? || platform.include?('$(')
-
-    # flycast-xtreme requires CPU-specific platform flags
-    extra_make_args = []
-
-    if name == 'flycast-xtreme'
-      extra_make_args << 'HAVE_OPENMP=1'
-
-      case @cpu_config.family
-      when 'cortex-a53'
-        # H700/A133 devices (RG28xx/35xx/40xx, Trimui)
-        platform = 'odroid-n2'
-        extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
-        @logger.detail("  Using Knulli H700/A133 config: platform=#{platform}")
-      when 'cortex-a35'
-        # RG351 series (legacy 64-bit ARM)
-        platform = 'odroid-n2'
-        extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
-        @logger.detail("  Using platform=#{platform} for Cortex-A35")
-      when 'cortex-a55'
-        # RK3566 devices (Miyoo Flip, etc.)
-        platform = 'odroidc4'
-        extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
-        @logger.detail("  Using platform=#{platform} for Cortex-A55")
-      when 'cortex-a7'
-        platform = 'arm'
-        extra_make_args += ['FORCE_GLES=1', 'ARCH=arm', 'LDFLAGS=-lrt']
-        @logger.detail("  Using platform=#{platform} for ARM32")
-      else
-        # Generic ARM64 fallback
-        if @cpu_config.arch == 'aarch64'
-          platform = 'arm64'
-          extra_make_args += ['FORCE_GLES=1', 'ARCH=arm64', 'LDFLAGS=-lrt']
-          @logger.detail("  Using platform=#{platform} for ARM64")
-        end
-      end
-    end
+    build_subdir = metadata['build_dir'] || raise("Missing 'build_dir' for #{name}")
+    makefile = metadata['makefile'] || raise("Missing 'makefile' for #{name}")
+    so_file_path = metadata['so_file'] || raise("Missing 'so_file' for #{name}")
 
     run_prebuild_steps(name, core_dir)
 
     work_dir = File.join(core_dir, build_subdir)
-
     unless Dir.exist?(work_dir)
-      log_error(name, "Build directory not found: #{work_dir}")
-      @failed += 1
-      return
+      raise "Build directory not found: #{work_dir}"
     end
 
-    # Find actual makefile
-    actual_makefile = find_makefile(work_dir, makefile)
-    unless actual_makefile
-      log_error(name, "Makefile not found: #{makefile}")
-      @failed += 1
-      return
+    makefile_path = File.join(work_dir, makefile)
+    unless File.exist?(makefile_path)
+      raise "Makefile not found: #{makefile_path}"
     end
-
-    # Build make arguments
-    make_args = []
-    make_args << "platform=#{platform}" if platform
-    make_args += extra_make_args
 
     # Run make
     env = @cpu_config.to_env
     Dir.chdir(work_dir) do
-      # Clean first
-      run_command(env, "make", "-f", actual_makefile, "clean") rescue nil
-
-      # Build
-      args = ["make", "-f", actual_makefile, "-j#{@parallel}"]
-      args += make_args
-      run_command(env, *args)
+      run_command(env, *@command_builder.make_command(metadata, makefile))
     end
 
-    # Find and copy .so file
-    so_file = find_so_file(core_dir, name)
-    if so_file
-      copy_so_file(so_file, name)
-      @built += 1
-    else
-      log_error(name, "No .so file found")
-      @failed += 1
-    end
-  end
-
-  def find_makefile(dir, preferred)
-    candidates = [preferred, 'Makefile.libretro', 'Makefile', 'makefile']
-    candidates.each do |mf|
-      path = File.join(dir, mf)
-      return mf if File.exist?(path)
-    end
-    nil
-  end
-
-  def find_so_file(core_dir, name, metadata = {})
-    # If recipe specifies exact .so file path, use it
-    if metadata && metadata['so_file']
-      specific_path = File.join(core_dir, metadata['so_file'])
-      return specific_path if File.exist?(specific_path)
+    # Copy .so file to output (using explicit path from recipe)
+    so_file = File.join(core_dir, so_file_path)
+    unless File.exist?(so_file)
+      raise "Built .so file not found: #{so_file}"
     end
 
-    # Fallback: Search for .so files
-    pattern = File.join(core_dir, '**', '*_libretro.so')
-    so_files = Dir.glob(pattern)
-
-    # Prefer files with matching name
-    so_files.find { |f| File.basename(f).start_with?(name) } || so_files.first
+    dest_path = copy_so_file(so_file, name)
+    @built += 1
+    dest_path
   end
 
   def copy_so_file(so_file, name)
-    dest = File.join(@output_dir, "#{name}_libretro.so")
+    # Always preserve the original filename from the build
+    dest_name = File.basename(so_file)
+    dest = File.join(@output_dir, dest_name)
     FileUtils.cp(so_file, dest)
-    @logger.detail("  ✓ #{name}_libretro.so")
+    @logger.detail("  ✓ #{dest_name}")
+    dest
   end
 
   def run_command(env, *args)
