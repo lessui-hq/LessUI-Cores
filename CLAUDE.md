@@ -73,34 +73,40 @@ These are **manually maintained YAML files** that define which cores to build fo
 
 **Location:**
 - `recipes/linux/cortex-a7.yml` - ARM32 cores (26 cores)
-- `recipes/linux/cortex-a53.yml` - ARM64 baseline (30 cores)
-- `recipes/linux/cortex-a55.yml` - RK3566 optimized (30 cores)
-- `recipes/linux/cortex-a76.yml` - High-performance (31 cores)
+- `recipes/linux/cortex-a53.yml` - ARM64 baseline (29 cores)
+- `recipes/linux/cortex-a55.yml` - RK3566 optimized (29 cores)
+- `recipes/linux/cortex-a76.yml` - High-performance (29 cores)
 
-**Recipe Entry Format:**
+**Recipe Entry Format (Explicit & Minimal):**
 ```yaml
-core-name:
-  version: <git-commit-hash>
-  commit: <git-commit-hash>
-  url: https://github.com/org/repo/archive/<commit>.tar.gz
-  license: GPLv2
+atari800:
+  repo: libretro/libretro-atari800
+  commit: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
+  build_type: make
+  makefile: Makefile
+  build_dir: "."
   platform: unix
-  submodules: true|false
-  build_type: make|cmake
-  makefile: Makefile.libretro
-  name: core-name
-  repo: libretro-core-name
-  build_dir: .
-  extra_args: []              # Optional: additional make args
-  cmake_opts: []              # Optional: cmake-specific options
-  so_file: core_libretro.so   # Optional: override output path
+  so_file: atari800_libretro.so
 ```
 
+**Required fields:**
+- `repo` - GitHub org/repo (URL auto-constructed)
+- `commit` - Git SHA or tag
+- `build_type` - `make` or `cmake`
+- For make: `makefile`, `build_dir`, `platform`, `so_file`
+- For cmake: `cmake_opts`, `so_file`
+
+**Optional fields:**
+- `submodules: true` - Only include if needed
+- `extra_args: [...]` - Only for special cases
+- `clean_extra: "rm -f file.o"` - Only if make clean is broken
+
 **Important Notes:**
-- Each recipe file has a header comment with documentation
-- Cores are sorted alphabetically for easy navigation
-- Comments can be added anywhere (YAML supports `#` comments)
-- The `url` field uses GitHub's archive URL for the specific commit
+- Recipes are explicit - no guessing or fallbacks
+- Auto-constructs GitHub tarball URLs from repo + commit
+- Uses actual .so output names (no renaming)
+- Cores sorted alphabetically
+- Missing required fields = immediate clear error
 
 ### `config/{cpu}.config` - CPU-Specific Compiler Flags
 
@@ -114,72 +120,86 @@ Bash-formatted files with CPU-optimized compiler flags. Key variables:
 
 ## Adding New Cores
 
-To add a new core to the build:
+**Simple 3-step process:**
 
-1. **Find the core repository and commit:**
-   - Search https://github.com/libretro for the core repository
-   - Or reference Knulli's online definitions for tested commits: https://github.com/knulli-cfw/distribution/tree/main/package/batocera/emulators/retroarch/libretro
-
-2. **Add to recipe files:**
-   - Edit `recipes/linux/{cpu}.yml` for each CPU family you want to support
-   - Copy an existing core entry as a template
-   - Update all fields (name, version, url, etc.)
-
-3. **Build and test:**
-   ```bash
-   make core-cortex-a53-{corename}  # Test single core
-   make build-all                    # Build for all families
-   ```
-
-**Example - Adding a new core:**
+### 1. Find the commit
 ```bash
-# 1. Find the core repository and latest commit
-# Check https://github.com/libretro for official cores
-# Or reference Knulli: https://github.com/knulli-cfw/distribution/tree/main/package/batocera/emulators/retroarch/libretro
-
-# 2. Edit recipes/linux/cortex-a53.yml
-vim recipes/linux/cortex-a53.yml
-
-# 4. Add entry (alphabetically):
-genesisplusgx:
-  version: abc123...
-  commit: abc123...
-  url: https://github.com/libretro/Genesis-Plus-GX/archive/abc123.tar.gz
-  # ... rest of fields
-
-# 5. Test build
-make core-cortex-a53-genesisplusgx
+git ls-remote --heads https://github.com/libretro/libretro-atari800.git | grep master
+# Result: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
 ```
+
+Or check Knulli's tested commits:
+https://github.com/knulli-cfw/distribution/tree/main/packages/emulators/retroarch/libretro
+
+### 2. Add to recipe (alphabetically)
+
+Edit `recipes/linux/cortex-a53.yml`:
+
+```yaml
+atari800:
+  repo: libretro/libretro-atari800
+  commit: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
+  build_type: make
+  makefile: Makefile
+  build_dir: "."
+  platform: unix
+  so_file: atari800_libretro.so
+```
+
+### 3. Test and replicate
+
+```bash
+# Test on one CPU family first
+make core-cortex-a53-atari800
+
+# If successful, copy entry to other families
+# Then test each
+make core-cortex-a7-atari800
+make core-cortex-a55-atari800
+make core-cortex-a76-atari800
+```
+
+**Helper script for inspecting new cores:**
+```bash
+./scripts/inspect-core libretro/libretro-atari800 6a18cb23cc4a
+```
+
+See `docs/adding-cores.md` for detailed guide with examples.
 
 ## Updating Cores
 
 To update a core to a newer version:
 
 1. **Find the latest commit:**
-   - Check the libretro core's GitHub releases or commits
-   - Or reference Knulli's package definitions: https://github.com/knulli-cfw/distribution/tree/main/package/batocera/emulators/retroarch/libretro
-
-2. **Update recipe files:**
    ```bash
-   # Edit the recipe for each CPU family
+   git ls-remote --heads https://github.com/libretro/libretro-atari800.git | grep master
+   ```
+
+   Or reference Knulli's tested commits:
+   https://github.com/knulli-cfw/distribution/tree/main/packages/emulators/retroarch/libretro
+
+2. **Update the commit hash in recipes:**
+   ```bash
+   # Edit each CPU family recipe
    vim recipes/linux/cortex-a53.yml
 
-   # Update these fields with the new commit hash:
-   # - version: <new-commit-hash>
-   # - commit: <new-commit-hash>
-   # - url: https://github.com/org/repo/archive/<new-commit-hash>.tar.gz
+   # Change only the commit field:
+   atari800:
+     commit: <new-commit-hash>  # ← Update this line
    ```
 
-3. **Test the update:**
+3. **Clean and rebuild:**
    ```bash
-   # Test build single core first
-   make core-cortex-a53-{corename}
+   # Delete fetched source to force re-download
+   rm -rf output/cores/libretro-atari800
 
-   # If successful, update other CPU families and rebuild all
-   make build-all
+   # Test build
+   make core-cortex-a53-atari800
+
+   # Update other families and test
    ```
 
-**Tip:** You can reference Knulli's online package definitions to find tested commit hashes, but we maintain our own recipes independently.
+**Note:** URLs are auto-constructed from repo + commit, so you only need to update the commit field.
 
 ## MinUI Required Cores
 

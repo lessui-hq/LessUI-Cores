@@ -31,6 +31,15 @@ a5200:
   platform: unix
   so_file: a5200_libretro.so
 
+atari800:
+  repo: libretro/libretro-atari800
+  commit: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
+  build_type: make
+  makefile: Makefile
+  build_dir: "."
+  platform: unix
+  so_file: atari800_libretro.so
+
 beetle-lynx:
   repo: libretro/beetle-lynx-libretro
   commit: 7fead71b49e0f08be5c4d4224fea73c6174763bf
@@ -148,6 +157,15 @@ mgba:
   build_dir: "."
   platform: unix
   so_file: mgba_libretro.so
+
+mame2003-plus:
+  repo: libretro/mame2003-plus-libretro
+  commit: 62c7089644966f6ac5fc79fe03592603579a409d
+  build_type: make
+  makefile: Makefile
+  build_dir: "."
+  platform: unix
+  so_file: mame2003_plus_libretro.so
 
 pcsx:
   repo: libretro/pcsx_rearmed
