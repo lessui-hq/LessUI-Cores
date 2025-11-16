@@ -4,17 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LessUI-Cores is a build system for creating CPU-optimized libretro emulator cores for ARM-based retro handhelds running MinUI. It generates ~25-27 cores per CPU family, supporting 35 retro gaming systems.
+LessUI-Cores is a build system for creating CPU-optimized libretro emulator cores for ARM-based retro handhelds running MinUI. It builds 26-31 cores per CPU family, supporting all MinUI required cores plus additional systems.
 
-**Key Architecture Principle:** Systems-driven, not cores-driven. You define which retro systems to support in `config/systems.yml`, and the build system automatically determines which cores to build for each CPU family, using production-tested commits from Knulli.
+**Key Architecture:** Manual YAML recipes define which cores to build for each CPU family. Recipes are the single source of truth - edit them directly to add/update/remove cores.
+
+**MinUI Compatibility:** All 13 MinUI required cores are built for all CPU families to ensure upgrade compatibility from MinUI.
 
 ## Common Build Commands
 
 ```bash
-# Generate core lists from systems.yml (run after editing systems)
-make recipes-cortex-a53
-make recipes-all
-
 # Build cores for specific CPU family
 make build-cortex-a7    # ARM32: Miyoo Mini family
 make build-cortex-a53   # ARM64: Universal baseline (RG35xx, RG40xx, Trimui)
@@ -39,36 +37,22 @@ make clean-cortex-a53   # Clean specific CPU family
 
 ## Build System Architecture
 
-### Three-Phase Build Flow
+### Simple Two-Phase Build Flow
 
-The build system operates in three distinct phases:
+**Phase 1: Recipes → Fetched Sources**
+- **Input:** `recipes/linux/{cpu}.yml` (YAML files with core definitions)
+- **Script:** `lib/source_fetcher.rb`
+- **Output:** `output/cores/{corename}/` (git clones at specific commits)
 
-**Phase 1: System Configuration → Core Lists**
-- **Input:** `config/systems.yml` (defines retro systems and per-CPU core mappings)
-- **Script:** `scripts/generate-cores-from-systems`
-- **Output:** `config/cores-{cpu}.list` (unique cores needed for that CPU family)
-- **Example:** SNES uses `pocketsnes` on cortex-a7, `snes9x` on a53/a55, `bsnes` on a76
-
-**Phase 2: Core Lists → Build Recipes**
-- **Input:** `config/cores-{cpu}.list` + Knulli `.mk` files
-- **Script:** `scripts/generate-recipes`
-- **Library:** `lib/mk_parser.rb` (parses Knulli's Buildroot `.mk` files)
-- **Output:** `recipes/linux/{cpu}.json` (git URLs, tested commit hashes, build configs)
-- **Key:** Uses production-proven commits from Knulli's real hardware testing
-
-**Phase 3: Recipes → Built Cores**
-- **Input:** `recipes/linux/{cpu}.json` + CPU config files
-- **Script:** `scripts/build-all`
-- **Libraries:** `lib/cores_builder.rb` (orchestrator), `lib/core_builder.rb` (per-core builds)
+**Phase 2: Sources → Built Cores**
+- **Input:** Fetched sources + `config/{cpu}.config` (compiler flags)
+- **Script:** `lib/core_builder.rb`
 - **Output:** `output/{cpu}/*.so` files (compiled cores)
-- **Process:** Fetches sources, cross-compiles with CPU-optimized flags, outputs .so files
 
 ### Ruby Library Organization
 
-- **`lib/cores_builder.rb`** - Main orchestrator; coordinates all three phases
+- **`lib/cores_builder.rb`** - Main orchestrator; coordinates fetching and building
 - **`lib/cpu_config.rb`** - Parses `config/{cpu}.config` bash files into Ruby objects
-- **`lib/mk_parser.rb`** - Parses Knulli's `.mk` files to extract git repos, commits, build commands
-- **`lib/recipe_generator.rb`** - Generates JSON recipes from parsed .mk data
 - **`lib/source_fetcher.rb`** - Clones/fetches git repositories at specific commits
 - **`lib/core_builder.rb`** - Executes builds for individual cores
 - **`lib/logger.rb`** - Centralized logging with sections and timestamps
@@ -76,33 +60,47 @@ The build system operates in three distinct phases:
 ### Data Flow
 
 ```
-systems.yml → generate-cores-from-systems → cores-*.list
-                                                ↓
-cores-*.list + knulli/*.mk → generate-recipes → recipes/linux/*.json
-                                                    ↓
-recipes/linux/*.json → build-all → output/{cpu}/*.so
+recipes/linux/{cpu}.yml → source_fetcher → output/cores/
+                              ↓
+                        core_builder → output/{cpu}/*.so
 ```
 
 ## Key Configuration Files
 
-### `config/systems.yml` - Source of Truth
+### `recipes/linux/{cpu}.yml` - Source of Truth
 
-This is the **only file you should edit** to add/remove systems. Structure:
+These are **manually maintained YAML files** that define which cores to build for each CPU family. Edit them directly to add/update/remove cores.
 
+**Location:**
+- `recipes/linux/cortex-a7.yml` - ARM32 cores (26 cores)
+- `recipes/linux/cortex-a53.yml` - ARM64 baseline (30 cores)
+- `recipes/linux/cortex-a55.yml` - RK3566 optimized (30 cores)
+- `recipes/linux/cortex-a76.yml` - High-performance (31 cores)
+
+**Recipe Entry Format:**
 ```yaml
-system_id:
-  name: Display Name
-  cores:
-    default: core-name        # Used unless CPU-specific override exists
-    cortex-a7: lightweight    # Optional: ARM32 override (or null to exclude)
-    cortex-a53: balanced      # Optional: mid-range ARM64 override
-    cortex-a76: accurate      # Optional: high-end override
+core-name:
+  version: <git-commit-hash>
+  commit: <git-commit-hash>
+  url: https://github.com/org/repo/archive/<commit>.tar.gz
+  license: GPLv2
+  platform: unix
+  submodules: true|false
+  build_type: make|cmake
+  makefile: Makefile.libretro
+  name: core-name
+  repo: libretro-core-name
+  build_dir: .
+  extra_args: []              # Optional: additional make args
+  cmake_opts: []              # Optional: cmake-specific options
+  so_file: core_libretro.so   # Optional: override output path
 ```
 
-Core selection philosophy:
-- **cortex-a7:** Lightweight cores for weak ARM32 devices (pocketsnes, stella2014, gpsp)
-- **cortex-a53/a55:** Balance of accuracy and performance
-- **cortex-a76:** Cycle-accurate/heavy cores where beneficial (bsnes, swanstation, beetle)
+**Important Notes:**
+- Each recipe file has a header comment with documentation
+- Cores are sorted alphabetically for easy navigation
+- Comments can be added anywhere (YAML supports `#` comments)
+- The `url` field uses GitHub's archive URL for the specific commit
 
 ### `config/{cpu}.config` - CPU-Specific Compiler Flags
 
@@ -114,50 +112,94 @@ Bash-formatted files with CPU-optimized compiler flags. Key variables:
 
 **Do not edit these unless you understand ARM CPU architecture specifics.**
 
-### Generated Files (Do Not Edit Directly)
+## Adding New Cores
 
-- `config/cores-*.list` - Generated by `generate-cores-from-systems`
-- `recipes/linux/*.json` - Generated by `generate-recipes`
+To add a new core to the build:
 
-## Adding New Systems
+1. **Find the core repository and commit:**
+   - Search https://github.com/libretro for the core repository
+   - Or reference Knulli's online definitions for tested commits: https://github.com/knulli-cfw/distribution/tree/main/package/batocera/emulators/retroarch/libretro
 
-1. **Edit `config/systems.yml`:**
-   ```yaml
-   wonderswan:
-     name: Bandai WonderSwan
-     cores:
-       default: beetle-wswan
-       cortex-a7: null  # Exclude from ARM32
-   ```
+2. **Add to recipe files:**
+   - Edit `recipes/linux/{cpu}.yml` for each CPU family you want to support
+   - Copy an existing core entry as a template
+   - Update all fields (name, version, url, etc.)
 
-2. **Regenerate core lists and recipes:**
+3. **Build and test:**
    ```bash
-   make recipes-all
+   make core-cortex-a53-{corename}  # Test single core
+   make build-all                    # Build for all families
    ```
 
-3. **Build:**
-   ```bash
-   make build-cortex-a53  # Or build-all
-   ```
-
-The system will automatically fetch the core from Knulli's definitions.
-
-## Updating Cores from Knulli
-
-When Knulli updates their core definitions or commits:
-
+**Example - Adding a new core:**
 ```bash
-# Update Knulli submodule to latest
-git submodule update --remote knulli
+# 1. Find the core repository and latest commit
+# Check https://github.com/libretro for official cores
+# Or reference Knulli: https://github.com/knulli-cfw/distribution/tree/main/package/batocera/emulators/retroarch/libretro
 
-# Regenerate recipes with latest commits
-make recipes-all
+# 2. Edit recipes/linux/cortex-a53.yml
+vim recipes/linux/cortex-a53.yml
 
-# Rebuild cores
-make build-all
+# 4. Add entry (alphabetically):
+genesisplusgx:
+  version: abc123...
+  commit: abc123...
+  url: https://github.com/libretro/Genesis-Plus-GX/archive/abc123.tar.gz
+  # ... rest of fields
+
+# 5. Test build
+make core-cortex-a53-genesisplusgx
 ```
 
-This pulls the latest tested commits from Knulli's production builds.
+## Updating Cores
+
+To update a core to a newer version:
+
+1. **Find the latest commit:**
+   - Check the libretro core's GitHub releases or commits
+   - Or reference Knulli's package definitions: https://github.com/knulli-cfw/distribution/tree/main/package/batocera/emulators/retroarch/libretro
+
+2. **Update recipe files:**
+   ```bash
+   # Edit the recipe for each CPU family
+   vim recipes/linux/cortex-a53.yml
+
+   # Update these fields with the new commit hash:
+   # - version: <new-commit-hash>
+   # - commit: <new-commit-hash>
+   # - url: https://github.com/org/repo/archive/<new-commit-hash>.tar.gz
+   ```
+
+3. **Test the update:**
+   ```bash
+   # Test build single core first
+   make core-cortex-a53-{corename}
+
+   # If successful, update other CPU families and rebuild all
+   make build-all
+   ```
+
+**Tip:** You can reference Knulli's online package definitions to find tested commit hashes, but we maintain our own recipes independently.
+
+## MinUI Required Cores
+
+These 13 cores MUST be present on all CPU families for MinUI compatibility:
+
+1. **fake08** - PICO-8 (fantasy console)
+2. **fceumm** - Nintendo Entertainment System
+3. **gambatte** - Game Boy / Game Boy Color
+4. **gpsp** - Game Boy Advance (ARM32 optimized)
+5. **beetle-pce-fast** - PC Engine / TurboGrafx-16 (mednafen_pce_fast)
+6. **supafaust** - Super Nintendo (mednafen_supafaust)
+7. **beetle-vb** - Virtual Boy (mednafen_vb)
+8. **mgba** - Game Boy Advance (ARM64 / general purpose)
+9. **pcsx** - PlayStation (pcsx_rearmed)
+10. **picodrive** - Sega Genesis / Mega Drive / 32X
+11. **pokemini** - Pokemon Mini
+12. **race** - Neo Geo Pocket / Neo Geo Pocket Color
+13. **snes9x2005** - Super Nintendo (snes9x2005_plus)
+
+**Core Naming:** Some cores have different names in MinUI vs libretro. Our recipes use libretro names (e.g., `beetle-vb` instead of `mednafen_vb`).
 
 ## Build Environment
 
@@ -168,12 +210,17 @@ This pulls the latest tested commits from Knulli's production builds.
 
 ## CPU Family Details
 
-| CPU Family | Architecture | Devices | Core Selection Strategy |
-|------------|--------------|---------|------------------------|
-| **cortex-a7** | ARM32 (ARMv7) | Miyoo Mini, A30 | Lightweight cores, exclude heavy systems (N64, NDS, PSP) |
-| **cortex-a53** | ARM64 (ARMv8-a) | RG28xx/35xx/40xx, Trimui | Universal baseline, balanced cores |
-| **cortex-a55** | ARM64 (ARMv8.2-a) | Miyoo Flip, RGB30, RG353 | RK3566-optimized, crypto+dotprod extensions |
-| **cortex-a76** | ARM64 (ARMv8.2-a) | RG406/556, Retroid Pocket 5 | High-performance, cycle-accurate cores |
+| CPU Family | Architecture | Devices | Cores Built |
+|------------|--------------|---------|-------------|
+| **cortex-a7** | ARM32 (ARMv7) | Miyoo Mini, A30 | 26 cores |
+| **cortex-a53** | ARM64 (ARMv8-a) | RG28xx/35xx/40xx, Trimui | 30 cores |
+| **cortex-a55** | ARM64 (ARMv8.2-a) | Miyoo Flip, RGB30, RG353 | 30 cores |
+| **cortex-a76** | ARM64 (ARMv8.2-a) | RG406/556, Retroid Pocket 5 | 31 cores |
+
+**Core Selection Philosophy:**
+- **cortex-a7:** Lightweight cores, exclude heavy systems (N64, PSP, Dreamcast)
+- **cortex-a53/a55:** Balanced cores, universal compatibility
+- **cortex-a76:** Can handle cycle-accurate/heavy cores (bsnes, swanstation, beetle-psx)
 
 ## Troubleshooting
 
@@ -181,13 +228,13 @@ This pulls the latest tested commits from Knulli's production builds.
 
 1. Check build log: `output/logs/{cpu}-build.log`
 2. Test single core: `make core-cortex-a53-{corename}`
-3. Verify recipe exists: `cat recipes/linux/{cpu}.json | jq '.[] | select(.name=="{corename}")'`
+3. Verify recipe exists: `grep -A 10 "^{corename}:" recipes/linux/{cpu}.yml`
 
 ### Missing Cores
 
-1. Verify core exists in Knulli: `find knulli/package -name "libretro-{corename}.mk"`
-2. Check if core is in generated list: `cat config/cores-{cpu}.list`
-3. Regenerate recipes: `make recipes-{cpu}`
+1. Check if core is in recipe: `grep "^{corename}:" recipes/linux/{cpu}.yml`
+2. Add core to recipe file if missing (see "Adding New Cores" above)
+3. Rebuild: `make build-{cpu}`
 
 ### Cross-Compilation Issues
 
@@ -202,10 +249,10 @@ output/
 ├── cores/              # Fetched source code (git clones)
 ├── logs/               # Build logs
 ├── dist/               # Packaged zips
-├── cortex-a7/*.so      # ARM32 cores (25 cores)
-├── cortex-a53/*.so     # ARM64 baseline (26 cores)
-├── cortex-a55/*.so     # RK3566 optimized (26 cores)
-└── cortex-a76/*.so     # High-performance (27 cores)
+├── cortex-a7/*.so      # ARM32 cores (26 cores)
+├── cortex-a53/*.so     # ARM64 baseline (30 cores)
+├── cortex-a55/*.so     # RK3566 optimized (30 cores)
+└── cortex-a76/*.so     # High-performance (31 cores)
 ```
 
 ## Development Workflow
@@ -213,15 +260,15 @@ output/
 ### Testing a New Core
 
 ```bash
-# 1. Add system to systems.yml
-# 2. Generate recipe for one CPU family
-make recipes-cortex-a53
+# 1. Add core to recipes/linux/cortex-a53.yml
 
-# 3. Build just that core
+# 2. Build just that core
 make core-cortex-a53-{corename}
 
-# 4. If successful, build for all families
-make recipes-all
+# 3. If successful, add to other CPU families
+# Edit recipes/linux/cortex-a7.yml, cortex-a55.yml, cortex-a76.yml
+
+# 4. Build for all families
 make build-all
 ```
 
@@ -236,7 +283,7 @@ cd output/cores/{corename}
 ls -la
 
 # Try manual build with verbose output
-make -f Makefile.libretro platform=unix CC=gcc
+make -f Makefile.libretro platform=unix CC=gcc V=1
 ```
 
 ## Release and Deployment
@@ -269,10 +316,10 @@ When a tag matching YYYYMMDD format is pushed to `main`:
 2. Runs `make build-all` for all CPU families
 3. Packages builds using `make package-all`
 4. Creates GitHub Release with:
-   - `cortex-a7.zip` - ARM32 cores
-   - `cortex-a53.zip` - ARM64 baseline cores
-   - `cortex-a55.zip` - RK3566 optimized cores
-   - `cortex-a76.zip` - High-performance cores
+   - `cortex-a7.zip` - ARM32 cores (26 cores)
+   - `cortex-a53.zip` - ARM64 baseline (30 cores)
+   - `cortex-a55.zip` - RK3566 optimized (30 cores)
+   - `cortex-a76.zip` - High-performance (31 cores)
 5. Updates `latest` tag to point to newest release
 
 ### Prerequisites for Deployment
@@ -285,8 +332,8 @@ When a tag matching YYYYMMDD format is pushed to `main`:
 ## Important Notes
 
 - **Never commit `output/` directory** - It contains build artifacts and fetched sources
-- **The Knulli submodule is critical** - All core definitions and commits come from it
+- **Recipes are git-tracked** - Your edits to YAML files are preserved in version control
+- **Recipes are manually maintained** - No automatic generation; edit YAML files directly
 - **Each CPU family needs ~5GB disk space** - Plan accordingly
 - **Build times are 1-3 hours per CPU family** - Use `build-all` overnight
-- **Generated files are deterministic** - If you edit systems.yml, always regenerate recipes
 - **One release per day** - UTC date tags prevent multiple releases on the same day

@@ -195,6 +195,15 @@ class CoreBuilder
       "-DCMAKE_BUILD_TYPE=Release"
     ]
 
+    # For ARM32, force C99 standard to avoid glibc Float128 issues (GCC 8.3 limitation)
+    # This overrides any CMAKE_C_STANDARD set by the core's CMakeLists.txt
+    if @cpu_config.arch == 'arm'
+      cmake_opts += [
+        "-DCMAKE_C_STANDARD=99",
+        "-DCMAKE_CXX_STANDARD=11"
+      ]
+    end
+
     # Add CMAKE_PREFIX_PATH if set (for dependency finding)
     if ENV['CMAKE_PREFIX_PATH']
       cmake_opts += ["-DCMAKE_PREFIX_PATH=#{ENV['CMAKE_PREFIX_PATH']}"]
@@ -210,7 +219,7 @@ class CoreBuilder
     # For cmake builds, the .so might be in build/ subdirectory
     so_file = find_so_file(core_dir, name, metadata)
     if so_file
-      copy_so_file(so_file, name)
+      copy_so_file(so_file, name, metadata)
       @built += 1
     else
       log_error(name, "No .so file found")
@@ -297,9 +306,9 @@ class CoreBuilder
     end
 
     # Find and copy .so file
-    so_file = find_so_file(core_dir, name)
+    so_file = find_so_file(core_dir, name, metadata)
     if so_file
-      copy_so_file(so_file, name)
+      copy_so_file(so_file, name, metadata)
       @built += 1
     else
       log_error(name, "No .so file found")
@@ -331,10 +340,17 @@ class CoreBuilder
     so_files.find { |f| File.basename(f).start_with?(name) } || so_files.first
   end
 
-  def copy_so_file(so_file, name)
-    dest = File.join(@output_dir, "#{name}_libretro.so")
+  def copy_so_file(so_file, name, metadata = {})
+    # Use custom so_file name if specified in recipe, otherwise default to {name}_libretro.so
+    if metadata && metadata['so_file'] && !metadata['so_file'].include?('/')
+      dest_name = metadata['so_file']
+    else
+      dest_name = "#{name}_libretro.so"
+    end
+
+    dest = File.join(@output_dir, dest_name)
     FileUtils.cp(so_file, dest)
-    @logger.detail("  ✓ #{name}_libretro.so")
+    @logger.detail("  ✓ #{dest_name}")
   end
 
   def run_command(env, *args)

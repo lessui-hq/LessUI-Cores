@@ -2,10 +2,10 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'yaml'
 require 'fileutils'
 require_relative 'logger'
 require_relative 'cpu_config'
-require_relative 'recipe_generator'
 require_relative 'source_fetcher'
 require_relative 'core_builder'
 
@@ -31,7 +31,7 @@ class CoresBuilder
     @config_dir = config_dir
     @cores_dir = File.expand_path(cores_dir)
     @output_dir = File.expand_path(output_dir || "output/#{cpu_family}")
-    @recipe_file = recipe_file || "recipes/linux/#{cpu_family}.json"
+    @recipe_file = recipe_file || "recipes/linux/#{cpu_family}.yml"
     @parallel_fetch = parallel_fetch
     @parallel_build = parallel_build
     @dry_run = dry_run
@@ -106,7 +106,16 @@ class CoresBuilder
   end
 
   def load_recipes
-    JSON.parse(File.read(@recipe_file))
+    # Support both YAML (.yml) and legacy JSON (.json) recipes
+    if @recipe_file.end_with?('.yml')
+      # YAML recipes have a header comment block before the YAML content
+      file_content = File.read(@recipe_file)
+      yaml_content = file_content.split('---', 2)[1]
+      YAML.load(yaml_content)
+    else
+      # Legacy JSON support
+      JSON.parse(File.read(@recipe_file))
+    end
   end
 
   def generate_recipes

@@ -6,6 +6,7 @@
 
 require 'optparse'
 require 'json'
+require 'yaml'
 require 'fileutils'
 require_relative '../lib/logger'
 require_relative '../lib/cpu_config'
@@ -49,16 +50,17 @@ end
 
 # Initialize
 logger = BuildLogger.new
-recipe_file = "recipes/linux/#{cpu_family}.json"
+recipe_file = "recipes/linux/#{cpu_family}.yml"
 
 unless File.exist?(recipe_file)
   logger.error("Recipe file not found: #{recipe_file}")
-  logger.info("Run: make recipes-#{cpu_family}")
   exit 1
 end
 
 # Load recipes
-recipes = JSON.parse(File.read(recipe_file))
+file_content = File.read(recipe_file)
+yaml_content = file_content.split('---', 2)[1]
+recipes = YAML.load(yaml_content)
 
 unless recipes.key?(core_name)
   logger.error("Core not found in recipes: #{core_name}")
@@ -79,7 +81,7 @@ logger.info("")
 
 # Fetch source if needed
 unless options[:skip_fetch]
-  cores_dir = 'cores'
+  cores_dir = 'output/cores'
   repo_name = metadata['repo']
   core_dir = File.join(cores_dir, repo_name)
 

@@ -1,7 +1,7 @@
 # minarch-cores - Build libretro cores using Knulli definitions
 # CPU family-based builds for optimal performance
 
-.PHONY: help list-cores recipes-% recipes-all build-% build-all core-% package-% package-all clean-% clean docker-build shell release
+.PHONY: help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release
 
 # Docker configuration
 DOCKER_IMAGE := minarch-cores-builder
@@ -23,16 +23,15 @@ CPU_FAMILIES := cortex-a7 cortex-a53 cortex-a55 cortex-a76
 # All available CPU families (including disabled)
 ALL_CPU_FAMILIES := cortex-a7 cortex-a35 cortex-a53 cortex-a55 cortex-a76
 
-# Build parallelism (default to number of CPU cores)
-JOBS ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+# Build parallelism (default to 8 jobs for optimal build speed)
+JOBS ?= 8
 
 help:
 	@echo "minarch-cores - ARM libretro core builder (MinUI-focused)"
 	@echo ""
 	@echo "Quick Start:"
-	@echo "  1. Generate recipes: make recipes-cortex-a53"
-	@echo "  2. Build cores:      make build-cortex-a53"
-	@echo "  3. Build all:        make build-all"
+	@echo "  1. Build cores:      make build-cortex-a53"
+	@echo "  2. Build all:        make build-all"
 	@echo ""
 	@echo "Active CPU Families (MinUI-compatible optimized variants):"
 	@echo "  make build-cortex-a7        ARM32: Miyoo Mini family"
@@ -53,10 +52,6 @@ help:
 	@echo "Single Core Build (for testing/debugging):"
 	@echo "  make core-cortex-a53-gambatte  Build just gambatte for cortex-a53"
 	@echo "  make core-cortex-a53-flycast   Build just flycast for cortex-a53"
-	@echo ""
-	@echo "Recipe Generation:"
-	@echo "  make recipes-cortex-a53     Generate recipes for cortex-a53"
-	@echo "  make recipes-all            Generate all CPU family recipes"
 	@echo ""
 	@echo "Packaging:"
 	@echo "  make package-cortex-a53     Create cortex-a53.zip"
@@ -84,21 +79,8 @@ docker-build:
 	docker build -t $(DOCKER_IMAGE) .
 	@echo "✓ Docker image ready"
 
-# Generate recipes for a CPU family
-.PHONY: recipes-%
-recipes-%: docker-build
-	@echo "=== Generating recipes for $* ==="
-	@if [ ! -f config/$*.config ]; then \
-		echo "ERROR: Config not found: config/$*.config"; \
-		echo "Available configs: $(CPU_FAMILIES)"; \
-		exit 1; \
-	fi
-	$(DOCKER_RUN) ruby scripts/generate-recipes $*
-	@echo "✓ Recipes generated: recipes/linux/$*.json"
-
-# Generate all recipes
-.PHONY: recipes-all
-recipes-all: $(addprefix recipes-,$(CPU_FAMILIES))
+# Note: Recipes are now manually maintained YAML files in recipes/linux/
+# No automatic generation - edit recipes/*.yml directly to add/update cores
 
 # Generic build target for any CPU family
 .PHONY: build-%
@@ -109,13 +91,13 @@ build-%: docker-build
 		echo "Available configs: $(CPU_FAMILIES)"; \
 		exit 1; \
 	fi
-	@if [ ! -f recipes/linux/$*.json ]; then \
-		echo "ERROR: Recipe not found. Generate it first:"; \
-		echo "  make recipes-$*"; \
+	@if [ ! -f recipes/linux/$*.yml ]; then \
+		echo "ERROR: Recipe not found: recipes/linux/$*.yml"; \
+		echo "Available recipes: $(CPU_FAMILIES)"; \
 		exit 1; \
 	fi
-	@CORE_COUNT=$$(jq 'length' recipes/linux/$*.json); \
-	echo "Building $$CORE_COUNT cores for $*"
+	@CORE_COUNT=$$(grep -c "^[a-z]" recipes/linux/$*.yml | head -1); \
+	echo "Building cores for $*"
 	@echo "This will take 1-3 hours..."
 	@mkdir -p output/$* output/cores output/logs
 	$(DOCKER_RUN) ruby scripts/build-all $* -j $(JOBS) -l output/logs/$*-build.log
@@ -149,9 +131,8 @@ core-%: docker-build
 		echo "Available configs: $(CPU_FAMILIES)"; \
 		exit 1; \
 	fi; \
-	if [ ! -f recipes/linux/$$FAMILY.json ]; then \
-		echo "ERROR: Recipe not found. Generate it first:"; \
-		echo "  make recipes-$$FAMILY"; \
+	if [ ! -f recipes/linux/$$FAMILY.yml ]; then \
+		echo "ERROR: Recipe not found: recipes/linux/$$FAMILY.yml"; \
 		exit 1; \
 	fi; \
 	mkdir -p output/$$FAMILY output/cores output/logs; \
