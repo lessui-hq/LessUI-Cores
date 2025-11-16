@@ -103,11 +103,10 @@ class SourceFetcher
     if commit && commit =~ /^[0-9a-f]{40}$/
       # Full SHA - need full clone then checkout
       run_command("git", "clone", "--quiet", url, target_dir)
-      Dir.chdir(target_dir) do
-        run_command("git", "checkout", "--quiet", commit)
-        if needs_submodules
-          run_command("git", "submodule", "update", "--init", "--recursive", "--quiet")
-        end
+      # Use -C instead of chdir to avoid nested chdir warnings in threaded environment
+      run_command("git", "-C", target_dir, "checkout", "--quiet", commit)
+      if needs_submodules
+        run_command("git", "-C", target_dir, "submodule", "update", "--init", "--recursive", "--quiet")
       end
     else
       # Branch or tag - can use shallow clone
