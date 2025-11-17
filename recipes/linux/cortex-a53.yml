@@ -244,7 +244,7 @@ ppsspp:
     - -DCMAKE_C_FLAGS=-O2 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
     - -DCMAKE_CXX_FLAGS=-O2 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
     - -DUSE_FFMPEG=ON
-    - -DUSE_SYSTEM_FFMPEG=ON
+    - -DUSE_SYSTEM_FFMPEG=OFF
 
 prosystem:
   repo: libretro/prosystem-libretro
