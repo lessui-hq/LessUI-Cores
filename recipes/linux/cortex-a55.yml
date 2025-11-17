@@ -222,6 +222,7 @@ ppsspp:
   build_type: cmake
   so_file: build/lib/ppsspp_libretro.so
   submodules: true
+  prebuild_script: build-ppsspp-ffmpeg.sh
   cmake_opts:
     - -DCMAKE_BUILD_TYPE=Release
     - -DBUILD_SHARED_LIBS=OFF
