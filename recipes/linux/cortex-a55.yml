@@ -149,7 +149,7 @@ gpsp:
   build_type: make
   makefile: Makefile
   build_dir: "."
-  platform: unix
+  platform: arm64
   so_file: gpsp_libretro.so
 
 melonds:
