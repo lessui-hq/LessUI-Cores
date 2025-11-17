@@ -115,7 +115,7 @@ fceumm:
 
 flycast:
   repo: flyinghead/flycast
-  commit: 4747e6190899949bafd3391b3ba33b8e4c37219c
+  commit: aa97a6d64fb47d3ce0febaa575b26d975dd916e4  # v2.0 (stable, works with GCC 8.3.0)
   build_type: cmake
   so_file: build/flycast_libretro.so
   submodules: true
