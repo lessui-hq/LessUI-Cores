@@ -119,7 +119,6 @@ fceumm:
   so_file: fceumm_libretro.so
   extra_args:
     - HAVE_NTSC=0
-    - EXTERNAL_ZLIB=1
 
 fuse:
   repo: libretro/fuse-libretro
