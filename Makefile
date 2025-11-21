@@ -15,19 +15,20 @@ endif
 DOCKER_RUN := docker run --rm $(DOCKER_PLATFORM) -v $(PWD):/workspace -w /workspace $(DOCKER_IMAGE)
 
 # CPU families to build (all MinUI-compatible optimized variants)
-# Building 4 CPU families for optimal per-device performance
+# Building 5 CPU families for optimal per-device performance
 # and minui build optimization:
-#   - cortex-a7:  ARM32 devices (Miyoo Mini family)
+#   - cortex-a7:  ARM32 devices (Miyoo Mini family, Trimui Smart)
+#   - cortex-a9:  ARM32 devices (RG35XX, RG35XX Plus, MY282)
 #   - cortex-a53: ARM64 universal baseline
 #   - cortex-a55: RK3566 optimized (Miyoo Flip, RGB30, RG353)
 #   - cortex-a76: High-performance ARM64 (RG-406/556)
 #
 # Disabled:
 #   - cortex-a35: RG-351 series (no MinUI support - runs Knulli/JelOS)
-CPU_FAMILIES := cortex-a7 cortex-a53 cortex-a55 cortex-a76
+CPU_FAMILIES := cortex-a7 cortex-a9 cortex-a53 cortex-a55 cortex-a76
 
 # All available CPU families (including disabled)
-ALL_CPU_FAMILIES := cortex-a7 cortex-a35 cortex-a53 cortex-a55 cortex-a76
+ALL_CPU_FAMILIES := cortex-a7 cortex-a9 cortex-a35 cortex-a53 cortex-a55 cortex-a76
 
 # Build parallelism (default to 8 jobs for optimal build speed)
 JOBS ?= 8
@@ -40,15 +41,17 @@ help:
 	@echo "  2. Build all:        make build-all"
 	@echo ""
 	@echo "Active CPU Families (MinUI-compatible optimized variants):"
-	@echo "  make build-cortex-a7        ARM32: Miyoo Mini family"
+	@echo "  make build-cortex-a7        ARM32: Miyoo Mini, Trimui Smart"
+	@echo "  make build-cortex-a9        ARM32: RG35XX family"
 	@echo "  make build-cortex-a53       ARM64: Universal baseline"
 	@echo "  make build-cortex-a55       ARM64: RK3566 optimized"
 	@echo "  make build-cortex-a76       ARM64: High-performance"
-	@echo "  make build-all              Build all 4 families"
+	@echo "  make build-all              Build all 5 families"
 	@echo ""
 	@echo "Device Compatibility Guide:"
-	@echo "  Miyoo Mini/Plus/A30         → cortex-a7"
-	@echo "  RG28xx/35xx/40xx/CubeXX     → cortex-a53"
+	@echo "  Miyoo Mini/Plus/A30, Trimui → cortex-a7"
+	@echo "  RG35XX, RG35XX Plus, MY282  → cortex-a9"
+	@echo "  RG28xx/40xx, CubeXX, Trimui → cortex-a53"
 	@echo "  Miyoo Flip, RGB30, RG353    → cortex-a55"
 	@echo "  RG406/556, Retroid Pocket   → cortex-a76"
 	@echo ""
@@ -85,11 +88,12 @@ help:
 	@echo "  make update-recipes-all LIVE=1      Update all families"
 	@echo ""
 	@echo "Device Guide:"
-	@echo "  Anbernic RG28xx/35xx/40xx, Trimui → cortex-a53"
+	@echo "  Miyoo Mini/Plus/A30, Trimui Smart → cortex-a7"
+	@echo "  RG35XX, RG35XX Plus, MY282        → cortex-a9"
+	@echo "  Anbernic RG28xx/40xx, CubeXX      → cortex-a53"
 	@echo "  Miyoo Flip, RGB30, RG353          → cortex-a55"
-	@echo "  Miyoo Mini series                 → cortex-a7"
 	@echo "  RG351 series                      → cortex-a35"
-	@echo "  Retroid Pocket 5                  → cortex-a76"
+	@echo "  Retroid Pocket 5, RG406/556       → cortex-a76"
 
 # Build Docker image
 docker-build:
