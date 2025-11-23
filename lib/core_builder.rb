@@ -161,7 +161,7 @@ class CoreBuilder
 
     # Run CMake
     Dir.chdir(build_dir) do
-      run_command(env, *@command_builder.cmake_configure_command(metadata))
+      run_command(env, *@command_builder.cmake_configure_command(metadata, build_dir: build_dir))
       run_command(env, *@command_builder.cmake_build_command)
     end
 

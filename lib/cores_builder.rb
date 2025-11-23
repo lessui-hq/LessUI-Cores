@@ -46,7 +46,7 @@ class CoresBuilder
     @logger = BuildLogger.new(log_file: log_file)
 
     # Load CPU configuration
-    @cpu_config = CpuConfig.new(@cpu_family, config_dir: @config_dir, logger: @logger)
+    @cpu_config = CpuConfig.new(@cpu_family, recipe_file: @recipe_file, logger: @logger)
   end
 
   def run
@@ -116,7 +116,9 @@ class CoresBuilder
       # YAML recipes have a header comment block before the YAML content
       file_content = File.read(@recipe_file)
       yaml_content = file_content.split('---', 2)[1]
-      YAML.load(yaml_content)
+      data = YAML.load(yaml_content)
+      # Extract just the cores section (config section is loaded separately by CpuConfig)
+      data['cores'] || data
     else
       # Legacy JSON support
       JSON.parse(File.read(@recipe_file))
