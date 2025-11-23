@@ -73,13 +73,13 @@ Includes all 13 MinUI required cores plus 15-20 additional systems:
 
 ✅ **Simple YAML format** - Config and cores in one file
 ✅ **Architecture-based** - Clear ARM32 vs ARM64 separation
-✅ **Knulli-tested commits** - Production-proven on real hardware
+✅ **Tested commits** - Stable releases from upstream
 ✅ **No Buildroot** - Direct cross-compilation
 ✅ **glibc 2.28** - Maximum device compatibility
 
 ## Adding New Cores
 
-1. **Find the commit** from Knulli or libretro:
+1. **Find the commit** from libretro:
    ```bash
    git ls-remote --heads https://github.com/libretro/gambatte-libretro.git | grep master
    ```
@@ -146,7 +146,7 @@ make core-arm64-gambatte
 # 4. If successful, update other architectures
 ```
 
-See [Knulli's libretro packages](https://github.com/knulli-cfw/distribution/tree/main/packages/emulators/retroarch/libretro) for tested commits.
+Check the core's GitHub repository for stable releases and commits.
 
 ## Build Environment
 

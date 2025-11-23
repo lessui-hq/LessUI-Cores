@@ -127,8 +127,7 @@ git ls-remote --heads https://github.com/libretro/libretro-atari800.git | grep m
 # Result: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
 ```
 
-Or check Knulli's tested commits:
-https://github.com/knulli-cfw/distribution/tree/main/packages/emulators/retroarch/libretro
+Or check the core's GitHub releases/tags for stable versions.
 
 ### 2. Add to recipe (alphabetically)
 
@@ -172,8 +171,7 @@ To update a core to a newer version:
    git ls-remote --heads https://github.com/libretro/libretro-atari800.git | grep master
    ```
 
-   Or reference Knulli's tested commits:
-   https://github.com/knulli-cfw/distribution/tree/main/packages/emulators/retroarch/libretro
+   Or check the core's GitHub releases for stable commits.
 
 2. **Update the commit hash in recipes:**
    ```bash

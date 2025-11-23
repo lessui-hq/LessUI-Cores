@@ -113,37 +113,16 @@ jobs:
           arm64_count=$(cat artifacts/build-info-arm64/core-count-arm64.txt)
 
           cat << EOF > release_notes.md
-          # LessUI-Cores Build ${GITHUB_REF_NAME}
+          # LessUI-Cores ${GITHUB_REF_NAME}
 
-          Automated build of libretro cores for ARM-based retro handhelds running MinUI.
+          Libretro cores for ARM-based retro handhelds running MinUI.
 
-          ## Build Information
-          - Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          - Tag: ${GITHUB_REF_NAME}
-          - Commit: ${GITHUB_SHA:0:8}
+          | Package | Cores | Devices |
+          |---------|-------|---------|
+          | **linux-arm32.zip** | ${arm32_count} | Miyoo Mini, RG35XX, Trimui Smart |
+          | **linux-arm64.zip** | ${arm64_count} | RG28xx/40xx, CubeXX, Trimui |
 
-          ## Architecture Packages
-
-          Download the package for your device:
-
-          | Package | Architecture | Cores | Devices |
-          |---------|--------------|-------|---------|
-          | **arm32** | ARMv7VE + NEON-VFPv4 | ${arm32_count} | Miyoo Mini, RG35XX, Trimui Smart |
-          | **arm64** | ARMv8-A + NEON | ${arm64_count} | RG28xx/40xx, CubeXX, Trimui |
-
-          ## Installation
-
-          1. Download the appropriate .zip file for your device
-          2. Extract the .so files to your MinUI cores directory
-          3. Restart your device
-
-          ## Systems Supported
-
-          This build includes cores for ~30 retro gaming systems including all MinUI required cores.
-
-          ## Source
-
-          All cores built from production-tested commits sourced from [Knulli](https://github.com/knulli-cfw/distribution).
+          Built $(date -u '+%Y-%m-%d') from commit ${GITHUB_SHA:0:8}
           EOF
 
           echo "notes_file=release_notes.md" >> $GITHUB_OUTPUT

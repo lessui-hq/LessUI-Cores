@@ -1,5 +1,5 @@
-# minarch-cores - Build libretro cores using Knulli definitions
-# CPU family-based builds for optimal performance
+# minarch-cores - Build libretro cores for ARM devices
+# Architecture-based builds for optimal performance
 
 .PHONY: help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test update-recipes-% update-recipes-all
 
@@ -145,15 +145,15 @@ package-all: $(addprefix package-,$(CPU_FAMILIES))
 	@echo "=== Packaging Summary ==="
 	@ls -lh output/dist/*.zip 2>/dev/null | awk '{print "  " $$9 " - " $$5}'
 
-# List available cores
+# List cores in recipes
 list-cores:
-	@echo "Available cores from Knulli (131 cores):"
-	@find -L package/batocera/emulators/retroarch/libretro -name 'libretro-*.mk' 2>/dev/null | \
-		sed 's|.*/libretro-||' | sed 's|/.*||' | sort | uniq | \
-		awk '{printf "  - %s\n", $$0}' | head -20
-	@echo "  ... (and 111 more)"
+	@echo "=== arm32 cores ==="
+	@grep -E "^  [a-z]" recipes/linux/arm32.yml | sed 's/://' | awk '{printf "  - %s\n", $$1}'
 	@echo ""
-	@echo "Total: $$(find -L package/batocera/emulators/retroarch/libretro -name 'libretro-*.mk' 2>/dev/null | wc -l | xargs) cores"
+	@echo "=== arm64 cores ==="
+	@grep -E "^  [a-z]" recipes/linux/arm64.yml | sed 's/://' | awk '{printf "  - %s\n", $$1}'
+	@echo ""
+	@echo "Total: arm32=$$(grep -cE "^  [a-z]" recipes/linux/arm32.yml) cores, arm64=$$(grep -cE "^  [a-z]" recipes/linux/arm64.yml) cores"
 
 # Clean specific CPU family
 .PHONY: clean-%
