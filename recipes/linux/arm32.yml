@@ -123,7 +123,7 @@ cores:
   fbneo:
     repo: libretro/FBNeo
     target: master
-    commit: 2f41022002337ed20186144bbddb2d53392fab85
+    commit: 4a9024615209ab12a33cd7d0e37977058b0e88f7
     build_type: make
     makefile: Makefile
     build_dir: src/burner/libretro
@@ -169,7 +169,7 @@ cores:
   gpsp:
     repo: libretro/gpsp
     target: master
-    commit: 74db5e5c73020626a1118b97d3735b5636d65d9d
+    commit: 6250979f01db3f9ee5ebca179316e1319f017b48
     build_type: make
     makefile: Makefile
     build_dir: "."
@@ -209,7 +209,7 @@ cores:
   pcsx:
     repo: libretro/pcsx_rearmed
     target: master
-    commit: 228c14e10e9a8fae0ead8adf30daad2cdd8655b9
+    commit: 9059485691c44cb3a555464b06eddfb1082d586c
     build_type: make
     makefile: Makefile.libretro
     build_dir: "."
@@ -219,7 +219,7 @@ cores:
   picodrive:
     repo: libretro/picodrive
     target: master
-    commit: 5b8cdea5cb06fb8d3d8ce7b88695f8dd00b4ac12
+    commit: 046e5ff91eb4bfa728e51e01304ff73cf6b4ee96
     build_type: make
     makefile: Makefile.libretro
     build_dir: "."
