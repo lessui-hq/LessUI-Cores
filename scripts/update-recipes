@@ -9,6 +9,7 @@ require 'open3'
 require 'optparse'
 require 'fileutils'
 require 'time'
+require 'shellwords'
 
 class RecipeUpdater
   RECIPE_DIR = 'recipes/linux'
@@ -146,7 +147,7 @@ class RecipeUpdater
     commits = fetch_commit_messages(repo, old_sha, new_sha)
 
     if commits && !commits.empty?
-      md += "### Changes (#{commits.size} commits)\n\n"
+      md += "### Changes (#{commits.size} commit#{'s' unless commits.size == 1})\n\n"
       commits.each do |commit|
         md += "- #{commit}\n"
       end
@@ -161,40 +162,46 @@ class RecipeUpdater
 
   def fetch_commit_messages(repo, old_sha, new_sha)
     # Clone to a temp directory and fetch commit log
-    url = "https://github.com/#{repo}.git"
+    url = Shellwords.escape("https://github.com/#{repo}.git")
+    temp_dir = "/tmp/repo-#{$$}"
 
-    # Use git log with range to get commits
-    # Filter out merge commits and format nicely
-    cmd = "git clone --quiet --bare #{url} /tmp/repo-#{$$} 2>/dev/null && " \
-          "cd /tmp/repo-#{$$} && " \
-          "git log --no-merges --oneline --pretty=format:'%s' #{old_sha}..#{new_sha} 2>/dev/null"
+    begin
+      # Use git log with range to get commits
+      # Filter out merge commits and format nicely
+      old_sha_escaped = Shellwords.escape(old_sha)
+      new_sha_escaped = Shellwords.escape(new_sha)
 
-    stdout, stderr, status = Open3.capture3(cmd)
+      cmd = "git clone --quiet --bare #{url} #{Shellwords.escape(temp_dir)} 2>/dev/null && " \
+            "cd #{Shellwords.escape(temp_dir)} && " \
+            "git log --no-merges --oneline --pretty=format:'%s' #{old_sha_escaped}..#{new_sha_escaped} 2>/dev/null"
 
-    # Cleanup temp repo
-    system("rm -rf /tmp/repo-#{$$} 2>/dev/null")
+      stdout, stderr, status = Open3.capture3(cmd)
 
-    return nil unless status.success?
+      return nil unless status.success?
 
-    commits = stdout.lines.map(&:strip).reject(&:empty?)
+      commits = stdout.lines.map(&:strip).reject(&:empty?)
 
-    # Filter out common cruft
-    commits.reject! do |msg|
-      msg =~ /^Merge (pull request|branch)/i ||
-      msg =~ /^Update.*\.md$/i ||
-      msg =~ /^\[skip ci\]/i ||
-      msg =~ /^Revert "/i ||
-      msg =~ /^ci:/i ||
-      msg =~ /^chore:/i
+      # Filter out common cruft
+      commits.reject! do |msg|
+        msg =~ /^Merge (pull request|branch)/i ||
+        msg =~ /^Update.*\.md$/i ||
+        msg =~ /^\[skip ci\]/i ||
+        msg =~ /^Revert "/i ||
+        msg =~ /^ci:/i ||
+        msg =~ /^chore:/i
+      end
+
+      commits
+    rescue => e
+      nil
+    ensure
+      # Cleanup temp repo - guaranteed to run
+      FileUtils.rm_rf(temp_dir) if temp_dir && Dir.exist?(temp_dir)
     end
-
-    commits
-  rescue => e
-    nil
   end
 
   def fetch_latest_commit(repo, target)
-    url = "https://github.com/#{repo}.git"
+    url = Shellwords.escape("https://github.com/#{repo}.git")
 
     # Determine ref type based on target format
     ref = if target =~ /^v[\d.]+$/
@@ -208,7 +215,8 @@ class RecipeUpdater
       "refs/heads/#{target}"
     end
 
-    cmd = "git ls-remote #{url} #{ref} 2>/dev/null"
+    ref_escaped = Shellwords.escape(ref)
+    cmd = "git ls-remote #{url} #{ref_escaped} 2>/dev/null"
     stdout, stderr, status = Open3.capture3(cmd)
 
     if status.success? && !stdout.empty?
@@ -217,7 +225,8 @@ class RecipeUpdater
 
     # Fallback: try as annotated tag (fetch ^{} dereference)
     if target =~ /^v?[\d.]+$/
-      cmd = "git ls-remote #{url} #{ref}^{} 2>/dev/null"
+      ref_deref = Shellwords.escape("#{ref}^{}")
+      cmd = "git ls-remote #{url} #{ref_deref} 2>/dev/null"
       stdout, stderr, status = Open3.capture3(cmd)
       return stdout.split("\t").first if status.success? && !stdout.empty?
     end
