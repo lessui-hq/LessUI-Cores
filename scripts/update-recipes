@@ -7,6 +7,9 @@
 require 'yaml'
 require 'open3'
 require 'optparse'
+require 'fileutils'
+require 'time'
+require 'shellwords'
 
 class RecipeUpdater
   RECIPE_DIR = 'recipes/linux'
@@ -25,7 +28,7 @@ class RecipeUpdater
 
   def run
     puts "Updating recipes for #{@cpu_family}..."
-    puts "Mode: #{@dry_run ? 'DRY RUN' : 'LIVE UPDATE'}"
+    puts "Mode: #{@dry_run ? 'DRY RUN (no changes)' : 'LIVE (will update YAML)'}"
     puts
 
     # Read recipe file preserving formatting
@@ -34,16 +37,22 @@ class RecipeUpdater
 
     updates = []
 
-    recipes.each do |core_name, config|
+    recipes['cores'].each do |core_name, config|
       # Skip if targeting specific core and this isn't it
       next if @target_core && core_name != @target_core
+
+      # Skip if no target field (opt-in model - pinned cores)
+      target = config['target']
+      unless target
+        next
+      end
 
       repo = config['repo']
       current_commit = config['commit']
 
-      print "Checking #{core_name.ljust(20)} (#{repo})... "
+      print "Checking #{core_name.ljust(20)} (#{repo} @ #{target})... "
 
-      latest_commit = fetch_latest_commit(repo)
+      latest_commit = fetch_latest_commit(repo, target)
 
       if latest_commit.nil?
         puts "❌ Failed to fetch"
@@ -56,7 +65,7 @@ class RecipeUpdater
         puts "🔄 Update available"
         puts "   Current: #{current_commit[0..7]}"
         puts "   Latest:  #{latest_commit[0..7]}"
-        updates << { core: core_name, old: current_commit, new: latest_commit }
+        updates << { core: core_name, old: current_commit, new: latest_commit, repo: repo, target: target }
       end
     end
 
@@ -72,7 +81,6 @@ class RecipeUpdater
 
     if @dry_run
       puts "Dry run mode - no changes made"
-      puts "Run without --dry-run to apply updates"
       return
     end
 
@@ -88,6 +96,9 @@ class RecipeUpdater
     # Write updated content
     File.write(@recipe_file, updated_content)
 
+    # Generate changelog
+    generate_changelog(updates)
+
     puts "✅ Updated #{updates.size} core(s) in #{@recipe_file}"
     puts
     puts "Updated cores:"
@@ -98,31 +109,126 @@ class RecipeUpdater
 
   private
 
-  def fetch_latest_commit(repo)
-    url = "https://github.com/#{repo}.git"
+  def generate_changelog(updates)
+    return if updates.empty?
 
-    # Try to get HEAD first (default branch)
-    cmd = "git ls-remote #{url} HEAD 2>/dev/null"
+    # Create changelogs directory
+    FileUtils.mkdir_p('changelogs')
+
+    # Generate timestamp filename
+    timestamp = Time.now.strftime('%Y%m%d-%H%M%S')
+    changelog_file = "changelogs/#{timestamp}-#{@cpu_family}.md"
+
+    content = "# #{@cpu_family.upcase} Core Updates - #{Time.now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+
+    updates.each do |update|
+      content += generate_core_changelog(update)
+      content += "\n---\n\n"
+    end
+
+    File.write(changelog_file, content)
+    puts "📝 Changelog written to #{changelog_file}"
+  end
+
+  def generate_core_changelog(update)
+    core = update[:core]
+    old_sha = update[:old]
+    new_sha = update[:new]
+    repo = update[:repo]
+    target = update[:target]
+
+    md = "## #{core}\n"
+    md += "**Update:** `#{old_sha[0..7]}` → `#{new_sha[0..7]}`  \n"
+    md += "**Target:** #{target}  \n"
+    md += "**Repository:** https://github.com/#{repo}  \n"
+    md += "**Compare:** https://github.com/#{repo}/compare/#{old_sha[0..7]}...#{new_sha[0..7]}\n\n"
+
+    # Fetch commit messages between the two SHAs
+    commits = fetch_commit_messages(repo, old_sha, new_sha)
+
+    if commits && !commits.empty?
+      md += "### Changes (#{commits.size} commit#{'s' unless commits.size == 1})\n\n"
+      commits.each do |commit|
+        md += "- #{commit}\n"
+      end
+    else
+      md += "### Changes\n\n"
+      md += "*Unable to fetch commit history*\n"
+    end
+
+    md += "\n"
+    md
+  end
+
+  def fetch_commit_messages(repo, old_sha, new_sha)
+    # Clone to a temp directory and fetch commit log
+    url = Shellwords.escape("https://github.com/#{repo}.git")
+    temp_dir = "/tmp/repo-#{$$}"
+
+    begin
+      # Use git log with range to get commits
+      # Filter out merge commits and format nicely
+      old_sha_escaped = Shellwords.escape(old_sha)
+      new_sha_escaped = Shellwords.escape(new_sha)
+
+      cmd = "git clone --quiet --bare #{url} #{Shellwords.escape(temp_dir)} 2>/dev/null && " \
+            "cd #{Shellwords.escape(temp_dir)} && " \
+            "git log --no-merges --oneline --pretty=format:'%s' #{old_sha_escaped}..#{new_sha_escaped} 2>/dev/null"
+
+      stdout, stderr, status = Open3.capture3(cmd)
+
+      return nil unless status.success?
+
+      commits = stdout.lines.map(&:strip).reject(&:empty?)
+
+      # Filter out common cruft
+      commits.reject! do |msg|
+        msg =~ /^Merge (pull request|branch)/i ||
+        msg =~ /^Update.*\.md$/i ||
+        msg =~ /^\[skip ci\]/i ||
+        msg =~ /^Revert "/i ||
+        msg =~ /^ci:/i ||
+        msg =~ /^chore:/i
+      end
+
+      commits
+    rescue => e
+      nil
+    ensure
+      # Cleanup temp repo - guaranteed to run
+      FileUtils.rm_rf(temp_dir) if temp_dir && Dir.exist?(temp_dir)
+    end
+  end
+
+  def fetch_latest_commit(repo, target)
+    url = Shellwords.escape("https://github.com/#{repo}.git")
+
+    # Determine ref type based on target format
+    ref = if target =~ /^v[\d.]+$/
+      # Version tag (e.g., v1.18.1)
+      "refs/tags/#{target}"
+    elsif target =~ /^[\d.]+$/
+      # Plain version (e.g., 6.7.1) - try as tag
+      "refs/tags/#{target}"
+    else
+      # Branch name (e.g., master, main, develop)
+      "refs/heads/#{target}"
+    end
+
+    ref_escaped = Shellwords.escape(ref)
+    cmd = "git ls-remote #{url} #{ref_escaped} 2>/dev/null"
     stdout, stderr, status = Open3.capture3(cmd)
 
     if status.success? && !stdout.empty?
       return stdout.split("\t").first
     end
 
-    # Fallback to master
-    cmd = "git ls-remote #{url} refs/heads/master 2>/dev/null"
-    stdout, stderr, status = Open3.capture3(cmd)
-
-    if status.success? && !stdout.empty?
-      return stdout.split("\t").first
-    end
-
-    # Fallback to main
-    cmd = "git ls-remote #{url} refs/heads/main 2>/dev/null"
-    stdout, stderr, status = Open3.capture3(cmd)
-
-    if status.success? && !stdout.empty?
-      return stdout.split("\t").first
+    # Fallback: try as annotated tag (fetch ^{} dereference)
+    if target =~ /^v?[\d.]+$/
+      ref_deref = Shellwords.escape("#{ref}^{}")
+      cmd = "git ls-remote #{url} #{ref_deref} 2>/dev/null"
+      stdout, stderr, status = Open3.capture3(cmd)
+      return stdout.split("\t").first if status.success? && !stdout.empty?
     end
 
     nil
