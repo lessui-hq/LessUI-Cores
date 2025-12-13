@@ -45,7 +45,7 @@ cores:
   atari800:
     repo: libretro/libretro-atari800
     target: master
-    commit: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
+    commit: 630f2346a1dabefdcf534880a48e3e200e2cc551
     build_type: make
     makefile: Makefile
     build_dir: "."
@@ -125,7 +125,7 @@ cores:
   fbneo:
     repo: libretro/FBNeo
     target: master
-    commit: 4a9024615209ab12a33cd7d0e37977058b0e88f7
+    commit: d94677cd17c7315006e54b3d64774a26db200bcd
     build_type: make
     makefile: Makefile
     build_dir: src/burner/libretro
@@ -225,7 +225,7 @@ cores:
   mame2003-plus:
     repo: libretro/mame2003-plus-libretro
     target: master
-    commit: 62c7089644966f6ac5fc79fe03592603579a409d
+    commit: 26cc26baf1357a581581ea5b3b6978391373d0a8
     build_type: make
     makefile: Makefile
     build_dir: "."
@@ -245,7 +245,7 @@ cores:
   picodrive:
     repo: libretro/picodrive
     target: master
-    commit: 046e5ff91eb4bfa728e51e01304ff73cf6b4ee96
+    commit: 3365b1774bc8680be9899968fe45b224ad2f11c1
     build_type: make
     makefile: Makefile.libretro
     build_dir: "."
