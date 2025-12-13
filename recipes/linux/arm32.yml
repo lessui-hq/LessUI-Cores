@@ -16,10 +16,12 @@ config:
   target_optimization: "-march=armv7ve -mcpu=cortex-a7 -mtune=cortex-a7"
   target_float: "-mfloat-abi=hard -mfpu=neon-vfpv4"
 
-  # Compiler flags
-  target_cflags: "-O2 -pipe -fsigned-char"
-  target_cxxflags: "-O2 -pipe -fsigned-char"
-  target_ldflags: ""
+  # Compiler flags (aggressive optimization as backstop for platform flags)
+  # Note: -ffast-math avoided as supafaust rejects __FAST_MATH__; -fno-math-errno gives similar benefit
+  # Platform-specific Makefiles (classic_armv7_a7) add -Ofast/-ffast-math where appropriate
+  target_cflags: "-O3 -fno-math-errno -flto -fdata-sections -ffunction-sections -fomit-frame-pointer -pipe -fsigned-char"
+  target_cxxflags: "-O3 -fno-math-errno -flto -fdata-sections -ffunction-sections -fomit-frame-pointer -pipe -fsigned-char"
+  target_ldflags: "-flto -Wl,--gc-sections"
 
   # Buildroot-style variables
   buildroot:
@@ -286,8 +288,8 @@ cores:
       - -DVULKAN=OFF
       - -DUSE_WAYLAND_WSI=OFF
       - -DUSING_X11_VULKAN=OFF
-      - -DCMAKE_C_FLAGS=-O2 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DCMAKE_CXX_FLAGS=-O2 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
+      - -DCMAKE_C_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
+      - -DCMAKE_CXX_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
       - -DUSE_FFMPEG=ON
       - -DUSE_SYSTEM_FFMPEG=OFF
 
@@ -353,7 +355,8 @@ cores:
     build_type: make
     makefile: Makefile
     build_dir: "."
-    platform: classic_armv7_a7
+    # Use unix platform - classic_armv7_a7 has -Ofast which triggers DSPUtility's __FAST_MATH__ check
+    platform: unix
     so_file: mednafen_supafaust_libretro.so
 
   vecx:

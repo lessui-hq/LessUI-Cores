@@ -16,10 +16,12 @@ config:
   target_optimization: "-march=armv8-a+crc -mcpu=cortex-a53 -mtune=cortex-a53"
   target_float: ""
 
-  # Compiler flags
-  target_cflags: "-O2 -pipe -fsigned-char"
-  target_cxxflags: "-O2 -pipe -fsigned-char"
-  target_ldflags: ""
+  # Compiler flags (aggressive optimization as backstop for platform flags)
+  # Note: -ffast-math avoided as supafaust rejects __FAST_MATH__; -fno-math-errno gives similar benefit
+  # Platform-specific Makefiles add -Ofast/-ffast-math where appropriate
+  target_cflags: "-O3 -fno-math-errno -flto -fdata-sections -ffunction-sections -fomit-frame-pointer -pipe -fsigned-char"
+  target_cxxflags: "-O3 -fno-math-errno -flto -fdata-sections -ffunction-sections -fomit-frame-pointer -pipe -fsigned-char"
+  target_ldflags: "-flto -Wl,--gc-sections"
 
   # Buildroot-style variables
   buildroot:
@@ -162,6 +164,11 @@ cores:
     build_dir: "."
     platform: unix
     so_file: fuse_libretro.so
+    extra_args:
+      # Use PLATFORM_DEFINES to add flags that work with Makefile's CFLAGS += $(PLATFORM_DEFINES)
+      # Disable LTO/fast-math on aarch64 - causes relocation overflow
+      - "PLATFORM_DEFINES=-fno-lto -fno-fast-math"
+      - "LIBS=-lm"
 
   gambatte:
     repo: libretro/gambatte-libretro
@@ -281,8 +288,8 @@ cores:
       - -DVULKAN=OFF
       - -DUSE_WAYLAND_WSI=OFF
       - -DUSING_X11_VULKAN=OFF
-      - -DCMAKE_C_FLAGS=-O2 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DCMAKE_CXX_FLAGS=-O2 -DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
+      - -DCMAKE_C_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
+      - -DCMAKE_CXX_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
       - -DUSE_FFMPEG=ON
       - -DUSE_SYSTEM_FFMPEG=OFF
 
