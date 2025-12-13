@@ -156,6 +156,95 @@ RSpec.describe CommandBuilder do
         expect(args).to include('-DCMAKE_CXX_STANDARD=11')
       end
     end
+
+    context 'with CMAKE_C_FLAGS in recipe cmake_opts' do
+      let(:cpu_family) { 'arm64' }
+      let(:arch) { 'aarch64' }
+      let(:target_cross) { 'aarch64-linux-gnu-' }
+
+      # Note: cmake_opts are split by whitespace, so each -D flag becomes separate
+      # e.g., "-DCMAKE_C_FLAGS=-DFOO=1 -DBAR=2" becomes ["-DCMAKE_C_FLAGS=-DFOO=1", "-DBAR=2"]
+
+      it 'extracts -D define from recipe CMAKE_C_FLAGS and merges with config flags' do
+        metadata = {
+          # After split: ["-DCMAKE_C_FLAGS=-DFOO=1"]
+          'cmake_opts' => ['-DCMAKE_C_FLAGS=-DFOO=1']
+        }
+        args = builder.cmake_args(metadata)
+
+        c_flags_arg = args.find { |arg| arg.start_with?('-DCMAKE_C_FLAGS=') }
+        expect(c_flags_arg).not_to be_nil
+
+        # Should contain config CFLAGS
+        expect(c_flags_arg).to include('-O2')
+        expect(c_flags_arg).to include('-pipe')
+
+        # Should contain recipe define
+        expect(c_flags_arg).to include('-DFOO=1')
+      end
+
+      it 'filters out optimization flags from recipe CMAKE_C_FLAGS value' do
+        metadata = {
+          # Recipe only has optimization flag, no defines to keep
+          'cmake_opts' => ['-DCMAKE_C_FLAGS=-O3']
+        }
+        args = builder.cmake_args(metadata)
+
+        c_flags_arg = args.find { |arg| arg.start_with?('-DCMAKE_C_FLAGS=') }
+
+        # Should contain config CFLAGS (which has -O2)
+        expect(c_flags_arg).to include('-O2')
+        # The -O3 from recipe should NOT appear as a define (it's an optimization flag)
+      end
+
+      it 'removes original CMAKE_C_FLAGS from cmake_opts' do
+        metadata = {
+          'cmake_opts' => ['-DCMAKE_C_FLAGS=-DFOO=1', '-DBUILD_SHARED_LIBS=ON']
+        }
+        args = builder.cmake_args(metadata)
+
+        # Should only have one CMAKE_C_FLAGS entry (the merged one)
+        c_flags_entries = args.select { |arg| arg.start_with?('-DCMAKE_C_FLAGS=') }
+        expect(c_flags_entries.length).to eq(1)
+
+        # Other options should be preserved
+        expect(args).to include('-DBUILD_SHARED_LIBS=ON')
+      end
+
+      it 'handles CMAKE_CXX_FLAGS the same way' do
+        metadata = {
+          'cmake_opts' => ['-DCMAKE_CXX_FLAGS=-DCPP_DEFINE=yes']
+        }
+        args = builder.cmake_args(metadata)
+
+        cxx_flags_arg = args.find { |arg| arg.start_with?('-DCMAKE_CXX_FLAGS=') }
+        expect(cxx_flags_arg).to include('-DCPP_DEFINE=yes')
+      end
+
+      it 'does not filter out legitimate defines starting with CMAKE' do
+        # Edge case: a preprocessor define like -DCMAKE_CUSTOM_THING=1 should be kept
+        # (it's a preprocessor define, not a CMake variable)
+        metadata = {
+          'cmake_opts' => ['-DCMAKE_C_FLAGS=-DCMAKE_CUSTOM_THING=1']
+        }
+        args = builder.cmake_args(metadata)
+
+        c_flags_arg = args.find { |arg| arg.start_with?('-DCMAKE_C_FLAGS=') }
+        # CMAKE_CUSTOM_THING is not in our builtin list, so it should be kept
+        expect(c_flags_arg).to include('-DCMAKE_CUSTOM_THING=1')
+      end
+
+      it 'filters out known CMake builtin variables used as defines' do
+        metadata = {
+          'cmake_opts' => ['-DCMAKE_C_FLAGS=-DCMAKE_BUILD_TYPE=Release']
+        }
+        args = builder.cmake_args(metadata)
+
+        c_flags_arg = args.find { |arg| arg.start_with?('-DCMAKE_C_FLAGS=') }
+        # CMAKE_BUILD_TYPE is a builtin and should be filtered
+        expect(c_flags_arg).not_to include('-DCMAKE_BUILD_TYPE=Release')
+      end
+    end
   end
 
   describe '#cmake_configure_command' do

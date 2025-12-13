@@ -18,7 +18,7 @@ config:
 
   # Compiler flags (aggressive optimization as backstop for platform flags)
   # Note: -ffast-math avoided as supafaust rejects __FAST_MATH__; -fno-math-errno gives similar benefit
-  # Platform-specific Makefiles (classic_armv7_a7) add -Ofast/-ffast-math where appropriate
+  # Platform-specific Makefiles may add -Ofast/-ffast-math where appropriate
   target_cflags: "-O3 -fno-math-errno -flto -fdata-sections -ffunction-sections -fomit-frame-pointer -pipe -fsigned-char"
   target_cxxflags: "-O3 -fno-math-errno -flto -fdata-sections -ffunction-sections -fomit-frame-pointer -pipe -fsigned-char"
   target_ldflags: "-flto -Wl,--gc-sections"

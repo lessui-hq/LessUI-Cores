@@ -127,8 +127,27 @@ class CommandBuilder
     # Extract the value after CMAKE_C_FLAGS= or CMAKE_CXX_FLAGS=
     value = flag_opt.sub("-D#{flag_name}=", '')
 
-    # Extract only -D defines, skip optimization flags like -O2, -O3, etc.
-    defines = value.split.select { |flag| flag.start_with?('-D') && !flag.start_with?('-DCMAKE') }
+    # Known CMake built-in variables to exclude (these are CMake settings, not preprocessor defines)
+    cmake_builtin_vars = %w[
+      CMAKE_C_FLAGS
+      CMAKE_CXX_FLAGS
+      CMAKE_BUILD_TYPE
+      CMAKE_INSTALL_PREFIX
+      CMAKE_EXPORT_COMPILE_COMMANDS
+      CMAKE_POSITION_INDEPENDENT_CODE
+      CMAKE_VERBOSE_MAKEFILE
+      CMAKE_MODULE_PATH
+      CMAKE_PREFIX_PATH
+    ]
+
+    # Extract only -D defines, skip optimization flags and CMake built-in variables
+    defines = value.split.select do |flag|
+      next false unless flag.start_with?('-D')
+
+      # Extract the variable name from -DVAR=... or -DVAR
+      var_name = flag[2..-1].split('=', 2).first
+      !cmake_builtin_vars.include?(var_name)
+    end
     defines.join(' ')
   end
 
