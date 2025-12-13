@@ -50,12 +50,23 @@ class CommandBuilder
     cmake_opts = metadata['cmake_opts'] || []
     cmake_opts = cmake_opts.flat_map { |opt| opt.split } # Split combined options
 
+    # Extract any -D defines from recipe CMAKE_C_FLAGS to merge with our flags
+    recipe_c_defines = extract_defines_from_cmake_flags(cmake_opts, 'CMAKE_C_FLAGS')
+    recipe_cxx_defines = extract_defines_from_cmake_flags(cmake_opts, 'CMAKE_CXX_FLAGS')
+
+    # Remove recipe CMAKE_C_FLAGS/CMAKE_CXX_FLAGS (we'll add merged versions)
+    cmake_opts.reject! { |opt| opt.start_with?('-DCMAKE_C_FLAGS=', '-DCMAKE_CXX_FLAGS=') }
+
+    # Build merged flags: config optimization + recipe defines
+    merged_cflags = "#{env['CFLAGS']} #{recipe_c_defines}".strip
+    merged_cxxflags = "#{env['CXXFLAGS']} #{recipe_cxx_defines}".strip
+
     # Add cross-compile settings (always required)
     cmake_opts += [
       "-DCMAKE_C_COMPILER=#{env['CC']}",
       "-DCMAKE_CXX_COMPILER=#{env['CXX']}",
-      "-DCMAKE_C_FLAGS=#{env['CFLAGS']}",
-      "-DCMAKE_CXX_FLAGS=#{env['CXXFLAGS']}",
+      "-DCMAKE_C_FLAGS=#{merged_cflags}",
+      "-DCMAKE_CXX_FLAGS=#{merged_cxxflags}",
       "-DCMAKE_SYSTEM_PROCESSOR=#{@cpu_config.arch}",
       "-DTHREADS_PREFER_PTHREAD_FLAG=ON"
     ]
@@ -106,6 +117,39 @@ class CommandBuilder
   end
 
   private
+
+  # Extract -D defines from a CMAKE_C_FLAGS or CMAKE_CXX_FLAGS option
+  # Returns the defines portion (e.g., "-DFOO=1 -DBAR=2") without optimization flags
+  def extract_defines_from_cmake_flags(cmake_opts, flag_name)
+    flag_opt = cmake_opts.find { |opt| opt.start_with?("-D#{flag_name}=") }
+    return '' unless flag_opt
+
+    # Extract the value after CMAKE_C_FLAGS= or CMAKE_CXX_FLAGS=
+    value = flag_opt.sub("-D#{flag_name}=", '')
+
+    # Known CMake built-in variables to exclude (these are CMake settings, not preprocessor defines)
+    cmake_builtin_vars = %w[
+      CMAKE_C_FLAGS
+      CMAKE_CXX_FLAGS
+      CMAKE_BUILD_TYPE
+      CMAKE_INSTALL_PREFIX
+      CMAKE_EXPORT_COMPILE_COMMANDS
+      CMAKE_POSITION_INDEPENDENT_CODE
+      CMAKE_VERBOSE_MAKEFILE
+      CMAKE_MODULE_PATH
+      CMAKE_PREFIX_PATH
+    ]
+
+    # Extract only -D defines, skip optimization flags and CMake built-in variables
+    defines = value.split.select do |flag|
+      next false unless flag.start_with?('-D')
+
+      # Extract the variable name from -DVAR=... or -DVAR
+      var_name = flag[2..-1].split('=', 2).first
+      !cmake_builtin_vars.include?(var_name)
+    end
+    defines.join(' ')
+  end
 
   # Check if a CMake option is already present in the arguments
   # Example: has_cmake_option?(['-DFOO=bar'], 'FOO') => true
