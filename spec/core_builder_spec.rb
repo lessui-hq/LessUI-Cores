@@ -209,7 +209,8 @@ RSpec.describe CoreBuilder do
         # First command: cmake configure
         cmake_cmd = captured_commands[0]
         expect(cmake_cmd[:args].first).to eq('cmake')
-        expect(cmake_cmd[:args]).to include('..')
+        # Second arg is the source directory (full path when no build_dir specified)
+        expect(cmake_cmd[:args][1]).to eq(cmake_core_dir)
         expect(cmake_cmd[:args]).to include('-DBUILD_SHARED_LIBS=ON')
 
         # Verify cross-compile settings are included
