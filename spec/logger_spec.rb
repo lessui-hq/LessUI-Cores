@@ -184,4 +184,96 @@ RSpec.describe BuildLogger do
       expect { logger.info(nil) }.not_to raise_error
     end
   end
+
+  describe 'duration formatting' do
+    it 'formats duration under 60 seconds as seconds' do
+      # Use summary which calls format_duration
+      allow(Time).to receive(:now).and_return(Time.at(0), Time.at(45))
+
+      logger_with_time = described_class.new
+      logger_with_time.summary(built: 1, failed: 0)
+
+      captured_output.rewind
+      result = captured_output.read
+
+      expect(result).to include('45s')
+    end
+
+    it 'formats duration in minutes and seconds' do
+      allow(Time).to receive(:now).and_return(Time.at(0), Time.at(125))
+
+      logger_with_time = described_class.new
+      logger_with_time.summary(built: 1, failed: 0)
+
+      captured_output.rewind
+      result = captured_output.read
+
+      expect(result).to include('2m 5s')
+    end
+
+    it 'formats duration in hours and minutes' do
+      allow(Time).to receive(:now).and_return(Time.at(0), Time.at(7500))
+
+      logger_with_time = described_class.new
+      logger_with_time.summary(built: 1, failed: 0)
+
+      captured_output.rewind
+      result = captured_output.read
+
+      expect(result).to include('2h 5m')
+    end
+  end
+
+  describe 'quiet mode' do
+    it 'suppresses detail messages in quiet mode' do
+      quiet_logger = described_class.new(quiet: true)
+      quiet_logger.detail('This should not appear')
+
+      captured_output.rewind
+      output = captured_output.read
+
+      # detail is suppressed in quiet mode
+      expect(output).not_to include('This should not appear')
+    end
+
+    it 'still shows info messages in quiet mode' do
+      quiet_logger = described_class.new(quiet: true)
+      quiet_logger.info('Important info')
+
+      captured_output.rewind
+      expect(captured_output.read).to include('Important info')
+    end
+  end
+
+  describe 'color output' do
+    it 'adds ANSI color codes when color is enabled' do
+      # Force color mode by stubbing the check
+      color_logger = described_class.new
+      color_logger.instance_variable_set(:@use_color, true)
+
+      color_logger.error('Error message')
+
+      captured_output.rewind
+      result = captured_output.read
+
+      # Should contain ANSI escape sequences for red
+      expect(result).to match(/\e\[31m/)  # Red color code
+      expect(result).to include('Error message')
+    end
+
+    it 'omits ANSI color codes when color is disabled' do
+      # Force no-color mode
+      color_logger = described_class.new
+      color_logger.instance_variable_set(:@use_color, false)
+
+      color_logger.error('Error message')
+
+      captured_output.rewind
+      result = captured_output.read
+
+      # Should not contain ANSI escape sequences
+      expect(result).not_to match(/\e\[\d+m/)
+      expect(result).to include('Error message')
+    end
+  end
 end

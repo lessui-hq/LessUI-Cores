@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# Code coverage - must be loaded before application code
+require 'simplecov'
+SimpleCov.start do
+  add_filter '/spec/'
+  enable_coverage :branch
+  minimum_coverage line: 90, branch: 85
+end
+
 require 'rspec'
 
 # Add lib directory to load path
@@ -22,4 +30,16 @@ RSpec.configure do |config|
 
   config.order = :random
   Kernel.srand config.seed
+
+  # Suppress stdout during tests to reduce noise
+  original_stdout = $stdout
+  original_stderr = $stderr
+
+  config.before(:suite) do
+    $stdout = StringIO.new unless ENV['VERBOSE']
+  end
+
+  config.after(:suite) do
+    $stdout = original_stdout
+  end
 end

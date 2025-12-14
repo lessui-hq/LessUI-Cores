@@ -108,7 +108,6 @@ atari800:
 - `target` - Branch name (e.g., `master`, `main`) or version tag (e.g., `v1.18.1`) to track for updates
 - `submodules: true` - Only include if needed
 - `extra_args: [...]` - Only for special cases
-- `clean_extra: "rm -f file.o"` - Only if make clean is broken
 - `cmake_env` - (cmake only) Override environment variables for the build process. Useful when a cmake project spawns host tool builds (e.g., mruby in tic80) that incorrectly inherit cross-compiler env vars. Example:
   ```yaml
   cmake_env:

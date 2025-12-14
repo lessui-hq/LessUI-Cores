@@ -376,7 +376,6 @@ cores:
     so_file: snes9x2005_plus_libretro.so
     extra_args:
       - USE_BLARGG_APU=1
-    clean_extra: "rm -f source/apu_blargg.o"
 
   stella:
     repo: stella-emu/stella
