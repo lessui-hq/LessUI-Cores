@@ -88,10 +88,7 @@ class CoresBuilder
   private
 
   def load_recipes_from_yaml
-    unless File.exist?(@recipe_file)
-      raise "Recipe file not found: #{@recipe_file}"
-    end
-
+    # Note: File existence already validated by CpuConfig during initialization
     @logger.info("Loading recipes from #{@recipe_file}")
 
     # Parse YAML (skip header comments before ---)

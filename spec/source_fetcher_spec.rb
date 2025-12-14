@@ -115,10 +115,18 @@ RSpec.describe SourceFetcher do
     end
 
     context 'with missing required fields' do
-      it 'handles errors gracefully' do
+      it 'handles missing repo gracefully' do
         metadata = { 'commit' => 'abc123' }  # Missing repo
 
         # Should not raise, but should log error and increment failed counter
+        fetcher.fetch_one('test', metadata)
+
+        expect(fetcher.failed).to eq(1)
+      end
+
+      it 'handles missing commit gracefully' do
+        metadata = { 'repo' => 'libretro/test-core' }  # Missing commit
+
         fetcher.fetch_one('test', metadata)
 
         expect(fetcher.failed).to eq(1)
@@ -289,6 +297,30 @@ RSpec.describe SourceFetcher do
       end
     end
 
+    context 'with version tag and submodules' do
+      let(:metadata) do
+        {
+          'repo' => 'libretro/test-core',
+          'commit' => 'v1.2.3',
+          'submodules' => true
+        }
+      end
+
+      it 'uses shallow clone with --recurse-submodules' do
+        allow(fetcher).to receive(:log_thread)
+
+        expect(fetcher).to receive(:run_command).with(
+          'git', 'clone', '--quiet', '--depth', '1',
+          '--branch', 'v1.2.3',
+          '--recurse-submodules',
+          'https://github.com/libretro/test-core.git',
+          anything
+        )
+
+        fetcher.fetch_one('test-core', metadata)
+      end
+    end
+
     context 'with full SHA commit' do
       let(:metadata) do
         {
@@ -324,27 +356,6 @@ RSpec.describe SourceFetcher do
       end
     end
 
-    context 'with git:// URL' do
-      it 'converts git:// URLs to https://' do
-        allow(fetcher).to receive(:log_thread)
-
-        # The URL is constructed from repo, so this tests internal conversion
-        # We can test by checking the method is called with https://
-        metadata = {
-          'repo' => 'libretro/test-core',
-          'commit' => 'v1.0.0'
-        }
-
-        expect(fetcher).to receive(:run_command).with(
-          'git', 'clone', '--quiet', '--depth', '1',
-          '--branch', 'v1.0.0',
-          'https://github.com/libretro/test-core.git',
-          anything
-        )
-
-        fetcher.fetch_one('test-core', metadata)
-      end
-    end
   end
 
   describe 'run_command error handling' do

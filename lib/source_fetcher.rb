@@ -117,22 +117,16 @@ class SourceFetcher
   end
 
   def fetch_git(url, target_dir, commit, needs_submodules)
-    # Convert .git URLs to https if needed
-    url = url.sub('git://', 'https://') if url.start_with?('git://')
-
     # Check if commit is a SHA or branch/tag
-    if commit && commit =~ /^[0-9a-f]{40}$/
-      # Full SHA - need full clone then checkout
+    if commit =~ /^[0-9a-f]{40}$/
+      # Full SHA with submodules - need full clone, checkout, then submodule init
+      # Note: SHA without submodules uses tarball path (faster), so needs_submodules is always true here
       run_command("git", "clone", "--quiet", url, target_dir)
-      # Use -C instead of chdir to avoid nested chdir warnings in threaded environment
       run_command("git", "-C", target_dir, "checkout", "--quiet", commit)
-      if needs_submodules
-        run_command("git", "-C", target_dir, "submodule", "update", "--init", "--recursive", "--quiet")
-      end
+      run_command("git", "-C", target_dir, "submodule", "update", "--init", "--recursive", "--quiet")
     else
       # Branch or tag - can use shallow clone
-      args = ["git", "clone", "--quiet", "--depth", "1"]
-      args += ["--branch", commit] if commit
+      args = ["git", "clone", "--quiet", "--depth", "1", "--branch", commit]
       args += ["--recurse-submodules"] if needs_submodules
       args += [url, target_dir]
 

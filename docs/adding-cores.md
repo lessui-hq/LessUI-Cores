@@ -42,7 +42,6 @@ cores:
 **Optional fields:**
 - `submodules: true` - If repo needs submodules
 - `extra_args: [...]` - Additional make arguments
-- `clean_extra: "rm -f path/file.o"` - Extra clean commands if needed
 
 ### 3. Test Build
 
@@ -129,12 +128,6 @@ flycast:
   cmake_opts:
     - -DCMAKE_BUILD_TYPE=Release
     - -DLIBRETRO=ON
-```
-
-**Custom clean (for broken make clean targets):**
-```yaml
-snes9x2005:
-  clean_extra: "rm -f source/apu_blargg.o"  # Makefile clean misses this
 ```
 
 ## Real Example: Adding atari800

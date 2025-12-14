@@ -244,4 +244,36 @@ RSpec.describe BuildLogger do
       expect(captured_output.read).to include('Important info')
     end
   end
+
+  describe 'color output' do
+    it 'adds ANSI color codes when color is enabled' do
+      # Force color mode by stubbing the check
+      color_logger = described_class.new
+      color_logger.instance_variable_set(:@use_color, true)
+
+      color_logger.error('Error message')
+
+      captured_output.rewind
+      result = captured_output.read
+
+      # Should contain ANSI escape sequences for red
+      expect(result).to match(/\e\[31m/)  # Red color code
+      expect(result).to include('Error message')
+    end
+
+    it 'omits ANSI color codes when color is disabled' do
+      # Force no-color mode
+      color_logger = described_class.new
+      color_logger.instance_variable_set(:@use_color, false)
+
+      color_logger.error('Error message')
+
+      captured_output.rewind
+      result = captured_output.read
+
+      # Should not contain ANSI escape sequences
+      expect(result).not_to match(/\e\[\d+m/)
+      expect(result).to include('Error message')
+    end
+  end
 end
