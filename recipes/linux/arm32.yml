@@ -42,6 +42,18 @@ cores:
     platform: classic_armv7_a7
     so_file: atari800_libretro.so
 
+  dosbox-pure:
+    repo: libretro/dosbox-pure
+    target: main
+    commit: e8cb6683e8539757644d84278cf4deb2b0d0debc
+    build_type: make
+    makefile: Makefile
+    build_dir: "."
+    platform: unix
+    so_file: dosbox_pure_libretro.so
+    extra_args:
+      - "MAKE_CPUFLAGS=-marm -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -ffast-math"
+
   beetle-lynx:
     repo: libretro/beetle-lynx-libretro
     target: master
@@ -87,6 +99,16 @@ cores:
     so_file: mednafen_vb_libretro.so
     extra_args:
       - NEED_BPP=16
+
+  beetle-wswan:
+    repo: libretro/beetle-wswan-libretro
+    target: master
+    commit: 2aeb47d3a58bf0360c686f842d9bb5bd201306fe
+    build_type: make
+    makefile: Makefile
+    build_dir: "."
+    platform: classic_armv7_a7
+    so_file: mednafen_wswan_libretro.so
 
   bluemsx:
     repo: libretro/blueMSX-libretro
@@ -182,6 +204,16 @@ cores:
     platform: classic_armv7_a7
     so_file: gpsp_libretro.so
 
+  gw:
+    repo: libretro/gw-libretro
+    target: master
+    commit: 435e5cfd4bf6aea03a84259e9b8dba3daf3ff5bd
+    build_type: make
+    makefile: Makefile.libretro
+    build_dir: "."
+    platform: classic_armv7_a7
+    so_file: gw_libretro.so
+
   melonds:
     repo: libretro/melonds
     target: master
@@ -221,6 +253,16 @@ cores:
     build_dir: "."
     platform: classic_armv7_a7
     so_file: mame2003_plus_libretro.so
+
+  neocd:
+    repo: libretro/neocd_libretro
+    target: master
+    commit: 5eca2c8fd567b5261251c65ecafa8cf5b179d1d2
+    build_type: make
+    makefile: Makefile
+    build_dir: "."
+    platform: unix
+    so_file: neocd_libretro.so
 
   pcsx:
     repo: libretro/pcsx_rearmed
@@ -293,6 +335,16 @@ cores:
     platform: classic_armv7_a7
     so_file: prosystem_libretro.so
 
+  puae:
+    repo: libretro/libretro-uae
+    target: master
+    commit: 0043cf9c061bd9b81dbc1869c2761017139cfc63
+    build_type: make
+    makefile: Makefile
+    build_dir: "."
+    platform: unix
+    so_file: puae_libretro.so
+
   race:
     repo: libretro/RACE
     target: master
@@ -348,6 +400,20 @@ cores:
     # Use unix platform - classic_armv7_a7 has -Ofast which triggers DSPUtility's __FAST_MATH__ check
     platform: unix
     so_file: mednafen_supafaust_libretro.so
+
+  tic80:
+    repo: libretro/TIC-80
+    target: master
+    commit: 6412f72d0f4725c153ce3d245729b829e713542e
+    build_type: cmake
+    build_dir: core
+    so_file: build/lib/tic80_libretro.so
+    submodules: true
+    cmake_opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_LIBRETRO=ON
+      - -DBUILD_SDL=OFF
+      - -DBUILD_DEMO_CARTS=OFF
 
   vecx:
     repo: libretro/libretro-vecx
