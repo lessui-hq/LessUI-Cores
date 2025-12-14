@@ -109,6 +109,17 @@ atari800:
 - `submodules: true` - Only include if needed
 - `extra_args: [...]` - Only for special cases
 - `clean_extra: "rm -f file.o"` - Only if make clean is broken
+- `cmake_env` - (cmake only) Override environment variables for the build process. Useful when a cmake project spawns host tool builds (e.g., mruby in tic80) that incorrectly inherit cross-compiler env vars. Example:
+  ```yaml
+  cmake_env:
+    CC: gcc        # Use native compiler for host tools
+    CXX: g++
+    AR: ar
+    CFLAGS: ""     # Clear cross-compile flags
+    CXXFLAGS: ""
+    LDFLAGS: ""
+  ```
+  Note: cmake still uses cross-compiler via `-DCMAKE_C_COMPILER`, but subprocesses inherit these env vars.
 
 **Important Notes:**
 - Recipes are explicit - no guessing or fallbacks

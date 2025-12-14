@@ -414,6 +414,15 @@ cores:
       - -DBUILD_LIBRETRO=ON
       - -DBUILD_SDL=OFF
       - -DBUILD_DEMO_CARTS=OFF
+    # mruby builds host tools (mrbc) via rake which inherits env vars.
+    # Override to use native compilers/flags for host tools while cmake uses cross-compiler.
+    cmake_env:
+      CC: gcc
+      CXX: g++
+      AR: ar
+      CFLAGS: ""
+      CXXFLAGS: ""
+      LDFLAGS: ""
 
   vecx:
     repo: libretro/libretro-vecx
