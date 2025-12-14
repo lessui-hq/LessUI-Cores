@@ -107,8 +107,10 @@ class CommandBuilder
   end
 
   # Build CMake configuration command
-  def cmake_configure_command(metadata, build_dir:)
-    ["cmake", "..", *cmake_args(metadata)]
+  def cmake_configure_command(metadata, build_dir:, source_dir: nil)
+    # Use source_dir if provided, otherwise default to parent of build_dir
+    src = source_dir || ".."
+    ["cmake", src, *cmake_args(metadata)]
   end
 
   # Build CMake build command

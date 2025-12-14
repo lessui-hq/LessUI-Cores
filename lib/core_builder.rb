@@ -153,15 +153,24 @@ class CoreBuilder
   def build_cmake(name, metadata, core_dir)
     so_file_path = metadata['so_file'] || raise("Missing 'so_file' for #{name}")
 
+    # Determine source directory (where CMakeLists.txt lives)
+    # Use build_dir from recipe if specified, otherwise use core_dir
+    source_subdir = metadata['build_dir']
+    if source_subdir && source_subdir != '.'
+      source_dir = File.join(core_dir, source_subdir)
+    else
+      source_dir = core_dir
+    end
+
     build_dir = File.join(core_dir, 'build')
     FileUtils.mkdir_p(build_dir)
 
     # Use CommandBuilder to generate CMake commands
     env = @cpu_config.to_env
 
-    # Run CMake
+    # Run CMake - pass source_dir so it knows where CMakeLists.txt is
     Dir.chdir(build_dir) do
-      run_command(env, *@command_builder.cmake_configure_command(metadata, build_dir: build_dir))
+      run_command(env, *@command_builder.cmake_configure_command(metadata, build_dir: build_dir, source_dir: source_dir))
       run_command(env, *@command_builder.cmake_build_command)
     end
 
