@@ -1,199 +1,147 @@
-# minarch-cores
+# LessUI-Cores
 
-Build libretro emulator cores for ARM-based retro handhelds running MinUI.
-
-**Simple 2-architecture build system** - ARM32 and ARM64!
-
-## Current Status
-
-✅ **~30 cores per architecture** - All MinUI required cores plus extras
-✅ **2 architectures** - arm32, arm64
-✅ **YAML-based recipes** - Single source of truth with embedded CPU configs
-✅ **Easily extensible** - Add cores by editing recipe YAML files
+Build libretro emulator cores for ARM retro handhelds running MinUI/LessUI.
 
 ## Quick Start
 
 ```bash
-# Build cores for all architectures
+# Build cores for ARM64 devices
+make build-arm64
+
+# Build cores for ARM32 devices
+make build-arm32
+
+# Build both architectures
 make build-all
 
-# Or build individually:
-make build-arm32  # All ARM32 devices
-make build-arm64  # All ARM64 devices
-
-# Package for distribution:
+# Package for distribution
 make package-all
 ```
-
-## Supported Systems
-
-Includes all 13 MinUI required cores plus 15-20 additional systems:
-
-**Core Systems (MinUI Required):** NES, SNES, GB/GBC, GBA, Genesis, PS1, PCE, Neo Geo Pocket, Virtual Boy, Pokemon Mini, PICO-8
-**Additional Systems:** Atari 2600/5200/7800, Lynx, Game Gear, Sega CD, N64, Dreamcast, PSP, and more
-
 
 ## Supported Devices
 
 | Package | Devices | Architecture |
 |---------|---------|--------------|
-| **arm32** | Miyoo Mini, RG35XX, Trimui Smart | ARMv7VE + NEON-VFPv4 (Cortex-A7) |
-| **arm64** | RG28xx/40xx, CubeXX, Trimui | ARMv8-A + NEON (Cortex-A53) |
+| **arm32** | Miyoo Mini/Plus/A30, RG35XX, Trimui Smart | ARMv7VE + NEON (Cortex-A7) |
+| **arm64** | RG28xx/35xx/40xx, CubeXX, Trimui | ARMv8-A + NEON (Cortex-A53) |
 
-### Architecture Details
+## What's Included
 
-**arm32**
-- 32-bit ARM (armhf)
-- Cortex-A7 baseline: `-march=armv7ve -mcpu=cortex-a7 -mfpu=neon-vfpv4`
-- Compatible with all ARM32 retro handhelds
+35 cores per architecture covering:
 
-**arm64**
-- 64-bit ARM (aarch64)
-- Cortex-A53 baseline: `-march=armv8-a+crc -mcpu=cortex-a53`
-- Compatible with all ARM64 retro handhelds
+- **Core Systems**: NES, SNES, GB/GBC, GBA, Genesis, PS1, PCE, Neo Geo Pocket, Virtual Boy, Pokemon Mini, PICO-8
+- **Additional**: Atari (2600/5200/7800/Lynx), Game Gear, Sega CD, N64, Dreamcast, PSP, DOS, and more
 
 ## How It Works
 
-### Build Flow
+**Recipes** define which cores to build:
+```
+recipes/linux/arm64.yml  →  Fetch sources  →  Build  →  output/arm64/*.so
+recipes/linux/arm32.yml  →  Fetch sources  →  Build  →  output/arm32/*.so
+```
 
-1. **Edit recipes** (`recipes/linux/{arch}.yml`)
-   - Manually maintained YAML files define which cores to build
-   - Each recipe contains both CPU config and core definitions
-   - Single source of truth for each architecture
+Each recipe YAML contains:
+1. **CPU config** - Compiler flags and toolchain settings
+2. **Core definitions** - Repo, commit, and build instructions for each core
 
-2. **Build cores** (`scripts/build-all`)
-   ```bash
-   make build-arm64
-   ```
-   - Fetches source code from GitHub
-   - Cross-compiles with architecture-optimized flags
-   - Outputs `.so` files to `output/{arch}/`
+## Build Commands
 
-### Benefits
+```bash
+# Full builds (1-3 hours each)
+make build-arm32          # All ARM32 cores
+make build-arm64          # All ARM64 cores
+make build-all            # Both architectures
 
-✅ **Simple YAML format** - Config and cores in one file
-✅ **Architecture-based** - Clear ARM32 vs ARM64 separation
-✅ **Tested commits** - Stable releases from upstream
-✅ **No Buildroot** - Direct cross-compilation
-✅ **glibc 2.28** - Maximum device compatibility
+# Single core (for testing)
+make core-arm64-gambatte  # Build one core
+make core-arm32-flycast
 
-## Adding New Cores
+# Packaging
+make package-arm64        # Create linux-arm64.zip
+make package-all          # Create all zips
 
-1. **Find the commit** from libretro:
+# Utilities
+make list-cores           # Show available cores
+make test                 # Run test suite
+make shell                # Open Docker shell
+make clean                # Remove all outputs
+```
+
+## Adding a Core
+
+1. Find the commit:
    ```bash
    git ls-remote --heads https://github.com/libretro/gambatte-libretro.git | grep master
    ```
 
-2. **Add to recipe** (edit `recipes/linux/arm64.yml`):
+2. Add to `recipes/linux/arm64.yml`:
    ```yaml
    cores:
      gambatte:
        repo: libretro/gambatte-libretro
-       commit: 47c5a2feaa9c253efc407283d9247a3c055f9efb
+       commit: 6924c76ba03dadddc6e97fa3660f3d3bc08faa94
        build_type: make
-       makefile: Makefile
+       makefile: Makefile.libretro
        build_dir: "."
        platform: unix
        so_file: gambatte_libretro.so
    ```
 
-3. **Test build**:
+3. Test build:
    ```bash
    make core-arm64-gambatte
    ```
 
-4. **Replicate to other architectures** and rebuild
-
-See `CLAUDE.md` for detailed instructions.
-
-## Build Commands
-
-```bash
-# Build specific architecture
-make build-arm32
-make build-arm64
-
-# Build all architectures
-make build-all
-
-# Build single core (for testing)
-make core-arm64-gambatte
-
-# Package builds
-make package-arm64
-make package-all
-
-# Clean
-make clean-arm64
-make clean
-```
+4. Copy entry to `arm32.yml` and test that architecture
 
 ## Updating Cores
 
-To update a core to a newer commit:
+Cores with a `target` field can be auto-updated:
 
 ```bash
-# 1. Find latest commit
-git ls-remote --heads https://github.com/libretro/gambatte-libretro.git | grep master
-
-# 2. Edit recipe YAML (recipes/linux/arm64.yml)
-#    Update just the commit field
-
-# 3. Clean and rebuild
-rm -rf output/cores-arm64/libretro-gambatte
-make core-arm64-gambatte
-
-# 4. If successful, update other architectures
+make update-recipes-arm64           # Update all updateable cores
+make update-core-arm64-gambatte     # Update specific core
+make update-recipes-arm64 DRY=1     # Check what would update
 ```
 
-Check the core's GitHub repository for stable releases and commits.
+For manually pinned cores, edit the `commit` field directly.
 
 ## Build Environment
 
-- **Docker**: Debian Buster
+- **Docker**: Debian Buster (glibc 2.28 for device compatibility)
 - **Compiler**: GCC 8.3.0
-- **glibc**: 2.28 (for maximum compatibility)
-- **Toolchains**: arm-linux-gnueabihf, aarch64-linux-gnu
+- **Toolchains**: arm-linux-gnueabihf (ARM32), aarch64-linux-gnu (ARM64)
 
 ## Project Structure
 
 ```
-minarch-cores/
-├── recipes/linux/               # Manual YAML recipes (source of truth)
-│   ├── arm32.yml                # ARM32 config + cores
-│   └── arm64.yml                # ARM64 config + cores
-├── lib/                         # Ruby build system
-│   ├── cpu_config.rb            # Extract config from YAML recipes
-│   ├── source_fetcher.rb        # Fetch git repos/tarballs
-│   ├── core_builder.rb          # Build individual cores
-│   ├── cores_builder.rb         # Orchestrate builds
-│   └── command_builder.rb       # Construct Make/CMake commands
-├── scripts/
-│   ├── build-all                # Build all cores for architecture
-│   ├── build-one                # Build single core (testing)
-│   └── release                  # Create git flow release
-├── output/                      # Build artifacts (not in git)
-│   ├── cores-arm64/             # Fetched source code
-│   ├── logs/                    # Build logs
-│   ├── dist/                    # Packaged zips
-│   └── arm64/*.so               # Built cores
-├── Dockerfile                   # Debian Buster (GCC 8.3, glibc 2.28)
-└── Makefile                     # Build orchestration
+recipes/linux/          # YAML recipes (source of truth)
+  arm32.yml             # ARM32 CPU config + cores
+  arm64.yml             # ARM64 CPU config + cores
+lib/                    # Ruby build system
+  cores_builder.rb      # Main orchestrator
+  source_fetcher.rb     # Fetch from GitHub
+  core_builder.rb       # Compile cores
+scripts/
+  build-all             # Build all cores
+  build-one             # Build single core
+  update-recipes        # Update commit hashes
+output/                 # Build outputs (gitignored)
+  arm64/*.so            # Built cores
+  cores-arm64/          # Fetched sources
+  dist/                 # Packaged zips
 ```
 
-### Key Files
+## Releases
 
-- **`recipes/linux/{arch}.yml`** - Single source of truth (config + cores)
-- **`CLAUDE.md`** - Detailed guide for working with this codebase
-- **`Makefile`** - All build commands
+Releases are triggered by pushing date-based tags:
 
-## Output
+```bash
+make release            # Create and push YYYYMMDD-N tag
+make release FORCE=1    # Force recreate today's release
+```
 
-Cores are built as `.so` files:
-- `output/arm64/*.so` - Individual cores
-- `output/dist/linux-arm64.zip` - Distribution package
-- `output/cores-arm64/` - Fetched source code
-- `output/logs/` - Build logs
+GitHub Actions builds both architectures and creates a release with `linux-arm32.zip` and `linux-arm64.zip`.
 
 ## Requirements
 
@@ -203,10 +151,9 @@ Cores are built as `.so` files:
 
 ## Documentation
 
-- **`CLAUDE.md`** - Complete guide to working with this codebase (start here!)
-- **`docs/adding-cores.md`** - Detailed guide for adding new cores
-- **`spec/`** - Test suite (81 examples)
+- `CLAUDE.md` - Detailed developer guide
+- `docs/adding-cores.md` - Step-by-step core addition guide
 
 ## License
 
-Individual cores have their own licenses (typically GPLv2). See upstream repositories for details.
+Individual cores have their own licenses (typically GPLv2). See upstream repositories.

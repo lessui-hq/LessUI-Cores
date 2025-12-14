@@ -72,8 +72,12 @@ done
 echo ""
 
 # Try a test build to find .so output
-echo "→ Attempting test build (ARM64)..."
+echo "→ Attempting test build (host)..."
 echo ""
+
+# Check for submodules at repo root before changing directory
+HAS_SUBMODULES=""
+[ -f "$TEMP_DIR/core/.gitmodules" ] && HAS_SUBMODULES="true"
 
 # Prefer Makefile.libretro, fallback to Makefile
 if [ -f "Makefile.libretro" ]; then
@@ -111,13 +115,14 @@ if [ -n "$SO_FILE" ]; then
   echo "============================================================"
   echo "$CORE_NAME:"
   echo "  repo: $REPO"
+  echo "  target: master"
   echo "  commit: $COMMIT"
   echo "  build_type: make"
   echo "  makefile: $MAKEFILE"
   echo "  build_dir: \"$BUILD_DIR\""
   echo "  platform: unix"
   echo "  so_file: $SO_RELATIVE"
-  [ -f ".gitmodules" ] && echo "  submodules: true"
+  [ -n "$HAS_SUBMODULES" ] && echo "  submodules: true"
   echo ""
 fi
 
