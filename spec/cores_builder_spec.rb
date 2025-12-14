@@ -60,9 +60,9 @@ RSpec.describe CoresBuilder do
     it 'sets default paths based on cpu_family' do
       builder = described_class.new(cpu_family: 'arm64', recipe_file: recipe_file)
 
-      expect(builder.instance_variable_get(:@cpu_family)).to eq('arm64')
-      expect(builder.instance_variable_get(:@cores_dir)).to include('output/cores-arm64')
-      expect(builder.instance_variable_get(:@output_dir)).to include('output/arm64')
+      expect(builder.cpu_family).to eq('arm64')
+      expect(builder.cores_dir).to include('output/cores-arm64')
+      expect(builder.output_dir).to include('output/arm64')
     end
 
     it 'accepts custom paths' do
@@ -74,9 +74,9 @@ RSpec.describe CoresBuilder do
         recipe_file: recipe_file
       )
 
-      expect(builder.instance_variable_get(:@cores_dir)).to eq(cores_dir)
-      expect(builder.instance_variable_get(:@cache_dir)).to eq(cache_dir)
-      expect(builder.instance_variable_get(:@output_dir)).to eq(output_dir)
+      expect(builder.cores_dir).to eq(cores_dir)
+      expect(builder.cache_dir).to eq(cache_dir)
+      expect(builder.output_dir).to eq(output_dir)
     end
 
     it 'accepts parallel settings' do
@@ -87,8 +87,8 @@ RSpec.describe CoresBuilder do
         parallel_build: 2
       )
 
-      expect(builder.instance_variable_get(:@parallel_fetch)).to eq(8)
-      expect(builder.instance_variable_get(:@parallel_build)).to eq(2)
+      expect(builder.parallel_fetch).to eq(8)
+      expect(builder.parallel_build).to eq(2)
     end
 
     it 'accepts dry_run option' do
@@ -98,7 +98,7 @@ RSpec.describe CoresBuilder do
         dry_run: true
       )
 
-      expect(builder.instance_variable_get(:@dry_run)).to be true
+      expect(builder.dry_run).to be true
     end
 
     it 'accepts skip_fetch and skip_build options' do
@@ -109,8 +109,8 @@ RSpec.describe CoresBuilder do
         skip_build: true
       )
 
-      expect(builder.instance_variable_get(:@skip_fetch)).to be true
-      expect(builder.instance_variable_get(:@skip_build)).to be true
+      expect(builder.skip_fetch).to be true
+      expect(builder.skip_build).to be true
     end
   end
 

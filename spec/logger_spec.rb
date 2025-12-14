@@ -230,12 +230,10 @@ RSpec.describe BuildLogger do
       quiet_logger.detail('This should not appear')
 
       captured_output.rewind
-      result = captured_output.read
+      output = captured_output.read
 
-      # detail is suppressed in quiet mode (line 62: unless @quiet && level == :detail)
-      # But since log checks for both @quiet and :detail level, it still outputs in this case
-      # Actually reviewing the code: log only suppresses when @quiet AND level == :detail
-      # So this test verifies the behavior - detail IS suppressed in quiet mode
+      # detail is suppressed in quiet mode
+      expect(output).not_to include('This should not appear')
     end
 
     it 'still shows info messages in quiet mode' do

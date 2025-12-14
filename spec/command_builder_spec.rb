@@ -20,19 +20,19 @@ RSpec.describe CommandBuilder do
   end
 
   let(:cpu_config) do
-    double('CpuConfig',
-           family: cpu_config_data[:family],
-           arch: cpu_config_data[:arch],
-           target_cross: cpu_config_data[:target_cross],
-           platform: cpu_config_data[:platform],
-           to_env: {
-             'ARCH' => cpu_config_data[:arch],
-             'CC' => "#{cpu_config_data[:target_cross]}gcc",
-             'CXX' => "#{cpu_config_data[:target_cross]}g++",
-             'CFLAGS' => cpu_config_data[:target_cflags],
-             'CXXFLAGS' => cpu_config_data[:target_cxxflags],
-             'LDFLAGS' => cpu_config_data[:target_ldflags]
-           })
+    instance_double('CpuConfig',
+                    family: cpu_config_data[:family],
+                    arch: cpu_config_data[:arch],
+                    target_cross: cpu_config_data[:target_cross],
+                    platform: cpu_config_data[:platform],
+                    to_env: {
+                      'ARCH' => cpu_config_data[:arch],
+                      'CC' => "#{cpu_config_data[:target_cross]}gcc",
+                      'CXX' => "#{cpu_config_data[:target_cross]}g++",
+                      'CFLAGS' => cpu_config_data[:target_cflags],
+                      'CXXFLAGS' => cpu_config_data[:target_cxxflags],
+                      'LDFLAGS' => cpu_config_data[:target_ldflags]
+                    })
   end
 
   let(:parallel) { 4 }
@@ -295,6 +295,66 @@ RSpec.describe CommandBuilder do
     it 'uses make with parallel jobs' do
       cmd = builder.cmake_build_command
       expect(cmd).to eq(['make', '-j4'])
+    end
+  end
+
+  describe '#cmake_args with CMAKE_PREFIX_PATH' do
+    let(:cpu_family) { 'arm64' }
+    let(:arch) { 'aarch64' }
+    let(:target_cross) { 'aarch64-linux-gnu-' }
+
+    around do |example|
+      original = ENV['CMAKE_PREFIX_PATH']
+      ENV['CMAKE_PREFIX_PATH'] = '/custom/prefix/path'
+      example.run
+      ENV['CMAKE_PREFIX_PATH'] = original
+    end
+
+    it 'includes CMAKE_PREFIX_PATH when set' do
+      metadata = { 'cmake_opts' => [] }
+      args = builder.cmake_args(metadata)
+      expect(args).to include('-DCMAKE_PREFIX_PATH=/custom/prefix/path')
+    end
+  end
+
+  describe '#make_command' do
+    let(:cpu_family) { 'arm64' }
+    let(:arch) { 'aarch64' }
+    let(:target_cross) { 'aarch64-linux-gnu-' }
+
+    let(:metadata) do
+      { 'platform' => 'unix', 'extra_args' => [] }
+    end
+
+    it 'builds make command with makefile and parallel flag' do
+      cmd = builder.make_command(metadata, 'Makefile.libretro')
+      expect(cmd).to include('make')
+      expect(cmd).to include('-f')
+      expect(cmd).to include('Makefile.libretro')
+      expect(cmd).to include('-j4')
+    end
+
+    it 'builds clean command when clean: true' do
+      cmd = builder.make_command(metadata, 'Makefile', clean: true)
+      expect(cmd).to eq(['make', '-f', 'Makefile', 'clean'])
+      expect(cmd).not_to include('-j4')
+    end
+  end
+
+  describe 'platform resolution' do
+    let(:cpu_family) { 'arm64' }
+    let(:arch) { 'aarch64' }
+    let(:target_cross) { 'aarch64-linux-gnu-' }
+
+    it 'raises error when platform is nil' do
+      metadata = { 'platform' => nil, 'extra_args' => [] }
+      expect { builder.make_args(metadata) }.to raise_error(/Missing 'platform'/)
+    end
+
+    it 'uses platform from metadata' do
+      metadata = { 'platform' => 'unix', 'extra_args' => [] }
+      args = builder.make_args(metadata)
+      expect(args).to include('platform=unix')
     end
   end
 

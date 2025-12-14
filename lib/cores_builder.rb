@@ -11,6 +11,9 @@ require_relative 'core_builder'
 # Main orchestrator for the build system
 # Coordinates recipe loading, source fetching, and building
 class CoresBuilder
+  attr_reader :cpu_family, :cores_dir, :cache_dir, :output_dir,
+              :parallel_fetch, :parallel_build, :dry_run, :skip_fetch, :skip_build
+
   def initialize(
     cpu_family:,
     cores_dir: nil,

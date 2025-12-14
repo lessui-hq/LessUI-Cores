@@ -10,6 +10,8 @@ require_relative 'logger'
 # Fetch source code for cores (tarballs or git repos)
 # Optimizes for speed: tarballs > shallow git clones
 class SourceFetcher
+  attr_reader :fetched, :skipped, :failed
+
   def initialize(cores_dir:, cache_dir: 'output/cache', logger: nil, parallel: 4)
     @cores_dir = cores_dir
     @cache_dir = cache_dir
