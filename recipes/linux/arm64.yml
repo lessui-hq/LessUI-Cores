@@ -365,6 +365,8 @@ cores:
     build_dir: "."
     platform: unix
     so_file: vecx_libretro.so
+    extra_args:
+      - HAS_GPU=0
 
   vice:
     repo: libretro/vice-libretro

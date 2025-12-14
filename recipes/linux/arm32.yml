@@ -369,7 +369,7 @@ cores:
     platform: classic_armv7_a7
     so_file: vecx_libretro.so
     extra_args:
-      - GL_LIB=-lGLESv2
+      - HAS_GPU=0
 
   vice:
     repo: libretro/vice-libretro
