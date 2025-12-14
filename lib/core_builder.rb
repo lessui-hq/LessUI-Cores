@@ -168,6 +168,14 @@ class CoreBuilder
     # Use CommandBuilder to generate CMake commands
     env = @cpu_config.to_env
 
+    # Apply cmake_env overrides if specified (for builds with host tool compilation)
+    # This allows setting CC/AR to native compilers while cmake uses cross-compiler
+    if metadata['cmake_env']
+      metadata['cmake_env'].each do |key, value|
+        env[key.to_s] = value.to_s
+      end
+    end
+
     # Run CMake - pass source_dir so it knows where CMakeLists.txt is
     Dir.chdir(build_dir) do
       run_command(env, *@command_builder.cmake_configure_command(metadata, build_dir: build_dir, source_dir: source_dir))
