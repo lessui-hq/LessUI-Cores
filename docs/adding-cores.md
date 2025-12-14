@@ -1,172 +1,136 @@
 # Adding New Cores
 
-This guide shows how to add a new core to minarch-cores. The process is straightforward with our explicit recipe system.
+This guide walks through adding a new libretro core to LessUI-Cores.
 
-## Quick Process (3 Steps)
+## Overview
 
-### 1. Find the Core Commit
+1. Find the core's GitHub repo and get the latest commit
+2. Add an entry to the recipe YAML
+3. Test the build
+4. Copy to other architectures
+
+## Step 1: Find the Core
+
+Most libretro cores live under the `libretro` GitHub organization.
 
 ```bash
-# Get latest commit from the core's repo
-git ls-remote --heads https://github.com/libretro/libretro-atari800.git | grep master
+# Get the latest commit SHA from master branch
+git ls-remote https://github.com/libretro/gambatte-libretro.git refs/heads/master
 
-# Output:
-# 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b	refs/heads/master
+# Output: 6924c76ba03dadddc6e97fa3660f3d3bc08faa94  refs/heads/master
 ```
 
-Or check the core's GitHub releases/tags for stable versions.
+For stable releases, check the repo's tags/releases page on GitHub.
 
-### 2. Add to Recipe (Alphabetically)
+## Step 2: Inspect the Build System
 
-Edit `recipes/linux/arm64.yml` and add under the `cores:` section:
+Use the helper script to analyze a core's build configuration:
+
+```bash
+./scripts/inspect-core libretro/gambatte-libretro 6924c76ba03dadddc6e97fa3660f3d3bc08faa94
+```
+
+This downloads the core, finds makefiles, attempts a test build, and suggests a recipe entry.
+
+**What to look for:**
+- Which Makefile to use (`Makefile.libretro` preferred over `Makefile`)
+- Where the build directory is (usually `.` but sometimes `platform/libretro`)
+- What the output `.so` file is named
+
+## Step 3: Add to Recipe
+
+Edit `recipes/linux/arm64.yml` and add the core under the `cores:` section in alphabetical order.
+
+### Make Build (Most Common)
 
 ```yaml
 cores:
-  atari800:
-    repo: libretro/libretro-atari800
-    commit: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
+  gambatte:
+    repo: libretro/gambatte-libretro
+    target: master                                    # Branch to track for updates
+    commit: 6924c76ba03dadddc6e97fa3660f3d3bc08faa94  # Specific SHA to build
     build_type: make
-    makefile: Makefile
+    makefile: Makefile.libretro
     build_dir: "."
     platform: unix
-    so_file: atari800_libretro.so
+    so_file: gambatte_libretro.so
 ```
 
-**Required fields:**
-- `repo` - GitHub org/repo path
-- `commit` - Git SHA or tag
-- `build_type` - `make` or `cmake`
-- For `make`: `makefile`, `build_dir`, `platform`, `so_file`
-- For `cmake`: `cmake_opts`, `so_file`
+### CMake Build
 
-**Optional fields:**
-- `submodules: true` - If repo needs submodules
-- `extra_args: [...]` - Additional make arguments
-
-### 3. Test Build
-
-```bash
-# Test on one architecture first
-make core-arm64-atari800
-
-# If successful, copy to arm32.yml and test
-make core-arm32-atari800
-```
-
-## Helper Script: inspect-core
-
-Use the helper script to inspect a core's build configuration:
-
-```bash
-./scripts/inspect-core libretro/libretro-atari800 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
-```
-
-This will:
-- Download the core
-- List available Makefiles
-- Detect CMake builds
-- Show build directories
-- Suggest a recipe entry
-
-## Finding the Right Settings
-
-### Which Makefile?
-
-**Prefer Makefile.libretro if it exists** (standard libretro convention):
-
-```bash
-# Check available makefiles
-ls output/cores/libretro-atari800/Makefile*
-
-# If both exist:
-# - Makefile.libretro ← Use this (preferred)
-# - Makefile ← Fallback
-```
-
-### Finding the .so Output
-
-After a successful build:
-
-```bash
-# Find the actual .so file
-find output/cores/libretro-atari800 -name "*_libretro.so"
-
-# Use the exact path in recipe (relative to core root)
-# Example: atari800_libretro.so
-# Example: platform/libretro/fake08_libretro.so
-# Example: src/burner/libretro/fbneo_libretro.so
-```
-
-### Special Cases
-
-**Non-root build directory:**
 ```yaml
-fake08:
-  build_dir: platform/libretro  # Not "."
-  so_file: platform/libretro/fake08_libretro.so
+cores:
+  flycast:
+    repo: flyinghead/flycast
+    target: v2.0
+    commit: aa97a6d64fb47d3ce0febaa575b26d975dd916e4
+    build_type: cmake
+    so_file: build/flycast_libretro.so
+    submodules: true
+    cmake_opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DLIBRETRO=ON
 ```
 
-**Needs submodules:**
-```yaml
-picodrive:
-  submodules: true
-```
+### Required Fields
 
-**Needs extra make args:**
-```yaml
-snes9x2005:
-  extra_args:
-    - USE_BLARGG_APU=1
-```
+**All cores:**
+| Field | Description |
+|-------|-------------|
+| `repo` | GitHub path (e.g., `libretro/gambatte-libretro`) |
+| `commit` | Full 40-character SHA |
+| `build_type` | `make` or `cmake` |
+| `so_file` | Path to output `.so` file (relative to core root) |
 
-**CMake build:**
-```yaml
-flycast:
-  build_type: cmake
-  so_file: build/flycast_libretro.so
-  submodules: true
-  cmake_opts:
-    - -DCMAKE_BUILD_TYPE=Release
-    - -DLIBRETRO=ON
-```
+**Make builds also need:**
+| Field | Description |
+|-------|-------------|
+| `makefile` | Makefile name (e.g., `Makefile.libretro`) |
+| `build_dir` | Directory containing the makefile (usually `"."`) |
+| `platform` | Usually `unix` |
 
-## Real Example: Adding atari800
+**CMake builds also need:**
+| Field | Description |
+|-------|-------------|
+| `cmake_opts` | List of CMake options |
 
-**Step 1: Find commit**
+### Optional Fields
+
+| Field | When to Use |
+|-------|-------------|
+| `target` | Branch or tag to track for auto-updates (e.g., `master`, `v1.0`) |
+| `submodules: true` | Core has git submodules |
+| `extra_args` | Additional make arguments |
+| `prebuild_script` | Script to run before build |
+
+## Step 4: Test Build
+
 ```bash
-git ls-remote --heads https://github.com/libretro/libretro-atari800.git | grep master
-# Result: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
+# Build just this core
+make core-arm64-gambatte
 ```
 
-**Step 2: Add to recipe** (alphabetically after a5200)
-```yaml
-atari800:
-  repo: libretro/libretro-atari800
-  commit: 6a18cb23cc4a7cecabd9b16143d2d7332ae8d44b
-  build_type: make
-  makefile: Makefile
-  build_dir: "."
-  platform: unix
-  so_file: atari800_libretro.so
-```
+If successful, you'll see the `.so` file in `output/arm64/`.
 
-**Step 3: Test**
+## Step 5: Add to Other Architectures
+
+Copy the same entry to `recipes/linux/arm32.yml` and test:
+
 ```bash
-make core-arm64-atari800
-# ✓ atari800_libretro.so
-# Built successfully!
+make core-arm32-gambatte
 ```
 
-**Step 4: Add to arm32**
-- Copy the same entry to arm32.yml
-- Test it
+Most cores work identically on both architectures. Exceptions:
+- `platform` might differ (e.g., `arm64` vs `unix` for gpsp)
+- Some cmake options are architecture-specific
 
 ## Common Patterns
 
-**Standard libretro core (most common):**
+### Standard libretro core
 ```yaml
 corename:
   repo: libretro/libretro-corename
+  target: master
   commit: <sha>
   build_type: make
   makefile: Makefile.libretro
@@ -175,41 +139,58 @@ corename:
   so_file: corename_libretro.so
 ```
 
-**Beetle/Mednafen cores (use mednafen_ prefix):**
+### Beetle/Mednafen cores
+Output uses `mednafen_` prefix:
 ```yaml
 beetle-lynx:
   repo: libretro/beetle-lynx-libretro
-  # ...
-  so_file: mednafen_lynx_libretro.so  # Not beetle-lynx_libretro.so!
+  so_file: mednafen_lynx_libretro.so  # Not beetle_lynx!
 ```
 
-**Upstream project cores (not libretro fork):**
+### Non-root build directory
+```yaml
+fbneo:
+  build_dir: src/burner/libretro
+  so_file: src/burner/libretro/fbneo_libretro.so
+```
+
+### Upstream project (not libretro fork)
 ```yaml
 stella:
-  repo: stella-emu/stella  # Not libretro/stella
-  # ...
-  build_dir: src/os/libretro  # Nested build location
-  so_file: src/os/libretro/stella_libretro.so
+  repo: stella-emu/stella          # Upstream repo
+  target: 6.7.1                    # Release tag
+  build_dir: src/libretro
+  so_file: src/libretro/stella_libretro.so
 ```
 
-## Verification Checklist
+### With extra make arguments
+```yaml
+snes9x2005:
+  extra_args:
+    - USE_BLARGG_APU=1
+```
 
-After adding a new core:
+## Troubleshooting
 
-- [ ] Builds successfully on all architectures
-- [ ] Uses Makefile.libretro if available
-- [ ] Uses actual .so output name (no renaming)
-- [ ] Alphabetically sorted in recipe under `cores:` section
-- [ ] All required fields present
-- [ ] Added to both architecture recipes (arm32, arm64)
+**Build fails immediately:**
+- Check the repo path is correct
+- Verify the commit SHA exists
+- Make sure build_dir contains the makefile
 
-## Tips
+**Can't find .so file:**
+- Check `so_file` path is relative to core root, not build_dir
+- Run `find output/cores-arm64/libretro-corename -name "*.so"` to locate it
 
-- **Copy from similar core** - Most cores follow the same pattern
-- **Test incrementally** - Build for one architecture first
-- **Check actual output** - Don't guess the .so filename
-- **Use official repos** - Prefer upstream over forks when possible
-- **Keep it simple** - Only add fields that are needed
-- **YAML format** - Remember to add cores under the `cores:` section
+**Works on one architecture but not the other:**
+- Some cores need different `platform` values
+- Check if extra_args need architecture-specific flags
 
-That's it! With explicit YAML recipes, adding cores is straightforward and error-free.
+## Checklist
+
+Before submitting:
+- [ ] Core builds on arm64
+- [ ] Core builds on arm32
+- [ ] Entry is alphabetically sorted in `cores:` section
+- [ ] Uses `Makefile.libretro` if available
+- [ ] `so_file` uses actual output name (check with `find`)
+- [ ] Added `target` field for auto-updates (recommended)
