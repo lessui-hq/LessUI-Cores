@@ -23,12 +23,7 @@ class CpuConfig
   end
 
   def platform
-    case @arch
-    when 'arm', 'aarch64'
-      'unix'
-    else
-      'unix'
-    end
+    'unix'
   end
 
   def to_env

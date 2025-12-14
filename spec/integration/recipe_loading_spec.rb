@@ -61,7 +61,7 @@ RSpec.describe 'Recipe Loading Integration' do
     it 'loads config and cores sections separately' do
       file_content = File.read(recipe_file)
       yaml_content = file_content.split('---', 2)[1]
-      data = YAML.load(yaml_content)
+      data = YAML.safe_load(yaml_content, permitted_classes: [Symbol])
 
       expect(data).to have_key('config')
       expect(data).to have_key('cores')
@@ -82,7 +82,7 @@ RSpec.describe 'Recipe Loading Integration' do
     it 'extracts cores section for building' do
       file_content = File.read(recipe_file)
       yaml_content = file_content.split('---', 2)[1]
-      data = YAML.load(yaml_content)
+      data = YAML.safe_load(yaml_content, permitted_classes: [Symbol])
       cores = data['cores']
 
       expect(cores['gambatte']['repo']).to eq('libretro/gambatte-libretro')

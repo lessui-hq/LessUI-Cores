@@ -35,8 +35,8 @@ RSpec.describe SourceFetcher do
 
         fetcher.fetch_one('test-core', metadata)
 
-        expect(fetcher.instance_variable_get(:@skipped)).to eq(1)
-        expect(fetcher.instance_variable_get(:@fetched)).to eq(0)
+        expect(fetcher.skipped).to eq(1)
+        expect(fetcher.fetched).to eq(0)
       end
     end
 
@@ -67,7 +67,7 @@ RSpec.describe SourceFetcher do
 
         fetcher.fetch_one('gambatte', metadata)
 
-        expect(fetcher.instance_variable_get(:@fetched)).to eq(1)
+        expect(fetcher.fetched).to eq(1)
       end
     end
 
@@ -115,13 +115,21 @@ RSpec.describe SourceFetcher do
     end
 
     context 'with missing required fields' do
-      it 'handles errors gracefully' do
+      it 'handles missing repo gracefully' do
         metadata = { 'commit' => 'abc123' }  # Missing repo
 
         # Should not raise, but should log error and increment failed counter
         fetcher.fetch_one('test', metadata)
 
-        expect(fetcher.instance_variable_get(:@failed)).to eq(1)
+        expect(fetcher.failed).to eq(1)
+      end
+
+      it 'handles missing commit gracefully' do
+        metadata = { 'repo' => 'libretro/test-core' }  # Missing commit
+
+        fetcher.fetch_one('test', metadata)
+
+        expect(fetcher.failed).to eq(1)
       end
     end
 
@@ -139,8 +147,8 @@ RSpec.describe SourceFetcher do
 
         fetcher.fetch_one('test-core', metadata)
 
-        expect(fetcher.instance_variable_get(:@failed)).to eq(1)
-        expect(fetcher.instance_variable_get(:@fetched)).to eq(0)
+        expect(fetcher.failed).to eq(1)
+        expect(fetcher.fetched).to eq(0)
       end
     end
   end
@@ -165,7 +173,7 @@ RSpec.describe SourceFetcher do
 
       fetcher.fetch_all(recipes)
 
-      expect(fetcher.instance_variable_get(:@fetched)).to eq(2)
+      expect(fetcher.fetched).to eq(2)
     end
 
     it 'logs summary with counts' do
@@ -206,7 +214,7 @@ RSpec.describe SourceFetcher do
 
       # With 10 cores and parallel: 2, should be faster than sequential
       # Just verify it completes successfully
-      expect(fetcher.instance_variable_get(:@fetched)).to eq(10)
+      expect(fetcher.fetched).to eq(10)
     end
   end
 
@@ -225,6 +233,164 @@ RSpec.describe SourceFetcher do
       end
 
       fetcher.fetch_one('gambatte', metadata)
+    end
+  end
+
+  describe 'fetch_tarball' do
+    let(:metadata) do
+      {
+        'repo' => 'libretro/test-core',
+        'commit' => 'abc123def456789012345678901234567890abcd'
+      }
+    end
+
+    it 'creates cache directory and downloads tarball' do
+      allow(fetcher).to receive(:log_thread)
+
+      # Mock run_command to simulate successful wget and tar
+      expect(fetcher).to receive(:run_command).with('wget', '-q', '-O', anything, anything).ordered
+      expect(fetcher).to receive(:run_command).with('tar', '-xzf', anything, '-C', anything, '--strip-components=1').ordered
+
+      fetcher.fetch_one('test-core', metadata)
+
+      # Verify cache directory was created
+      expect(Dir.exist?(File.join(cache_dir, 'libretro--test-core'))).to be true
+    end
+
+    it 'uses cached tarball if already present' do
+      allow(fetcher).to receive(:log_thread)
+
+      # Create fake cached tarball
+      repo_cache_dir = File.join(cache_dir, 'libretro--test-core')
+      FileUtils.mkdir_p(repo_cache_dir)
+      cached_file = File.join(repo_cache_dir, 'abc123def456789012345678901234567890abcd.tar.gz')
+      FileUtils.touch(cached_file)
+
+      # Should only call tar (not wget) since file exists
+      expect(fetcher).not_to receive(:run_command).with('wget', any_args)
+      expect(fetcher).to receive(:run_command).with('tar', '-xzf', anything, '-C', anything, '--strip-components=1')
+
+      fetcher.fetch_one('test-core', metadata)
+    end
+  end
+
+  describe 'fetch_git' do
+    context 'with version tag' do
+      let(:metadata) do
+        {
+          'repo' => 'libretro/test-core',
+          'commit' => 'v1.2.3'
+        }
+      end
+
+      it 'uses shallow clone for version tags' do
+        allow(fetcher).to receive(:log_thread)
+
+        expect(fetcher).to receive(:run_command).with(
+          'git', 'clone', '--quiet', '--depth', '1',
+          '--branch', 'v1.2.3',
+          'https://github.com/libretro/test-core.git',
+          anything
+        )
+
+        fetcher.fetch_one('test-core', metadata)
+      end
+    end
+
+    context 'with version tag and submodules' do
+      let(:metadata) do
+        {
+          'repo' => 'libretro/test-core',
+          'commit' => 'v1.2.3',
+          'submodules' => true
+        }
+      end
+
+      it 'uses shallow clone with --recurse-submodules' do
+        allow(fetcher).to receive(:log_thread)
+
+        expect(fetcher).to receive(:run_command).with(
+          'git', 'clone', '--quiet', '--depth', '1',
+          '--branch', 'v1.2.3',
+          '--recurse-submodules',
+          'https://github.com/libretro/test-core.git',
+          anything
+        )
+
+        fetcher.fetch_one('test-core', metadata)
+      end
+    end
+
+    context 'with full SHA commit' do
+      let(:metadata) do
+        {
+          'repo' => 'libretro/test-core',
+          'commit' => 'abc123def456789012345678901234567890abcd',
+          'submodules' => true
+        }
+      end
+
+      it 'uses full clone and checkout for SHA with submodules' do
+        allow(fetcher).to receive(:log_thread)
+        target_dir = File.join(cores_dir, 'libretro-test-core')
+
+        # Full clone
+        expect(fetcher).to receive(:run_command).with(
+          'git', 'clone', '--quiet',
+          'https://github.com/libretro/test-core.git',
+          target_dir
+        ).ordered
+
+        # Checkout specific commit
+        expect(fetcher).to receive(:run_command).with(
+          'git', '-C', target_dir, 'checkout', '--quiet',
+          'abc123def456789012345678901234567890abcd'
+        ).ordered
+
+        # Initialize submodules
+        expect(fetcher).to receive(:run_command).with(
+          'git', '-C', target_dir, 'submodule', 'update', '--init', '--recursive', '--quiet'
+        ).ordered
+
+        fetcher.fetch_one('test-core', metadata)
+      end
+    end
+
+  end
+
+  describe 'run_command error handling' do
+    let(:metadata) do
+      {
+        'repo' => 'libretro/test-core',
+        'commit' => 'v1.0.0'
+      }
+    end
+
+    it 'raises error when command fails' do
+      allow(fetcher).to receive(:log_thread)
+
+      # Mock Open3 to simulate failure
+      allow(Open3).to receive(:capture3).and_return(['', 'error output', double(success?: false)])
+
+      fetcher.fetch_one('test-core', metadata)
+
+      expect(fetcher.failed).to eq(1)
+    end
+  end
+
+  describe 'log_thread' do
+    it 'logs step messages for normal operations' do
+      allow(fetcher).to receive(:fetch_tarball)
+
+      expect(logger).to receive(:step).with(/Fetching/)
+
+      fetcher.fetch_one('test', { 'repo' => 'test/test', 'commit' => 'abc123' })
+    end
+
+    it 'logs error messages when error: true' do
+      expect(logger).to receive(:error).with(/Failed/)
+
+      fetcher.fetch_one('test', { 'commit' => 'abc123' })  # Missing repo
     end
   end
 end

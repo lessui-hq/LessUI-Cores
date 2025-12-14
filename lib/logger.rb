@@ -83,17 +83,14 @@ class BuildLogger
     formatted = prefix ? "#{prefix} #{message}" : message
 
     # Console output with color
-    unless @quiet && level == :detail
-      console_msg = @use_color ? colorize(formatted, color) : formatted
-      puts console_msg
-    end
+    console_msg = @use_color ? colorize(formatted, color) : formatted
+    puts console_msg
 
     # File output without color
     @file_handle&.puts("[#{timestamp}] [#{level.upcase}] #{formatted}")
   end
 
   def colorize(text, color)
-    return text unless @use_color
     "#{COLORS[color]}#{text}#{COLORS[:reset]}"
   end
 

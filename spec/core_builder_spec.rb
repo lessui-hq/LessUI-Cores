@@ -17,6 +17,8 @@ RSpec.describe CoreBuilder do
       family: 'arm64',
       arch: 'aarch64',
       target_cross: 'aarch64-linux-gnu-',
+      target_cpu: 'cortex-a53',
+      target_cflags: '-O2 -pipe -march=armv8-a',
       to_env: {
         'ARCH' => 'aarch64',
         'CC' => 'aarch64-linux-gnu-gcc',
@@ -209,7 +211,8 @@ RSpec.describe CoreBuilder do
         # First command: cmake configure
         cmake_cmd = captured_commands[0]
         expect(cmake_cmd[:args].first).to eq('cmake')
-        expect(cmake_cmd[:args]).to include('..')
+        # Second arg is the source directory (full path when no build_dir specified)
+        expect(cmake_cmd[:args][1]).to eq(cmake_core_dir)
         expect(cmake_cmd[:args]).to include('-DBUILD_SHARED_LIBS=ON')
 
         # Verify cross-compile settings are included
@@ -341,9 +344,8 @@ RSpec.describe CoreBuilder do
 
       builder.build_all(recipes)
 
-      # Check instance variables directly since build_all doesn't return stats hash
-      expect(builder.instance_variable_get(:@built)).to eq(2)
-      expect(builder.instance_variable_get(:@failed)).to eq(0)
+      expect(builder.built).to eq(2)
+      expect(builder.failed).to eq(0)
     end
 
     it 'logs summary with statistics' do
@@ -370,6 +372,25 @@ RSpec.describe CoreBuilder do
       expect(logger).to receive(:summary).with(built: 2, failed: 0, skipped: 0)
 
       builder.build_all(recipes)
+    end
+
+    context 'with dry_run enabled' do
+      let(:dry_run_builder) do
+        described_class.new(
+          cores_dir: cores_dir,
+          output_dir: output_dir,
+          cpu_config: cpu_config,
+          logger: logger,
+          parallel: 4,
+          dry_run: true
+        )
+      end
+
+      it 'logs dry run mode' do
+        expect(logger).to receive(:info).with('Dry run: true')
+
+        dry_run_builder.build_all(recipes)
+      end
     end
   end
 
@@ -559,6 +580,333 @@ RSpec.describe CoreBuilder do
       parallel_builder.build_one('test', metadata)
 
       expect(captured_args).to include('-j8')
+    end
+  end
+
+  describe 'prebuild scripts' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-test') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+    end
+
+    context 'when prebuild_script is specified' do
+      let(:metadata) do
+        {
+          'repo' => 'libretro/test-core',
+          'build_type' => 'make',
+          'makefile' => 'Makefile',
+          'build_dir' => '.',
+          'platform' => 'unix',
+          'so_file' => 'test_libretro.so',
+          'prebuild_script' => 'prebuild-test.sh'
+        }
+      end
+
+      it 'raises error when prebuild script does not exist' do
+        result = builder.build_one('test', metadata)
+
+        expect(result).to be_nil
+        expect(builder.failed).to eq(1)
+      end
+
+      it 'raises error when prebuild script fails' do
+        # Create a real scripts directory relative to lib/
+        scripts_dir = File.join(File.dirname(File.dirname(__FILE__)), 'scripts')
+        FileUtils.mkdir_p(scripts_dir)
+        script_path = File.join(scripts_dir, 'prebuild-test.sh')
+        File.write(script_path, "#!/bin/bash\nexit 1")
+        File.chmod(0o755, script_path)
+
+        begin
+          allow(Open3).to receive(:capture2e).and_return(['error output', double(success?: false)])
+
+          result = builder.build_one('test', metadata)
+
+          expect(result).to be_nil
+          expect(builder.failed).to eq(1)
+        ensure
+          FileUtils.rm_f(script_path)
+        end
+      end
+    end
+  end
+
+  describe 'patches' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-test') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+      FileUtils.touch(File.join(core_dir, 'Makefile'))
+    end
+
+    let(:metadata) do
+      {
+        'repo' => 'libretro/test-core',
+        'build_type' => 'make',
+        'makefile' => 'Makefile',
+        'build_dir' => '.',
+        'platform' => 'unix',
+        'so_file' => 'test_libretro.so'
+      }
+    end
+
+    context 'when no patches directory exists' do
+      it 'skips patching and continues build' do
+        # Create the .so file that would be produced by build
+        so_file = File.join(core_dir, 'test_libretro.so')
+        FileUtils.touch(so_file)
+
+        allow(Open3).to receive(:capture3).and_return(['', '', double(success?: true)])
+
+        result = builder.build_one('test', metadata)
+
+        expect(result).to eq(File.join(output_dir, 'test_libretro.so'))
+        expect(File.exist?(File.join(output_dir, 'test_libretro.so'))).to be true
+      end
+    end
+  end
+
+  describe 'VERBOSE mode' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-test') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+      FileUtils.touch(File.join(core_dir, 'Makefile'))
+    end
+
+    let(:metadata) do
+      {
+        'repo' => 'libretro/test-core',
+        'build_type' => 'make',
+        'makefile' => 'Makefile',
+        'build_dir' => '.',
+        'platform' => 'unix',
+        'so_file' => 'test_libretro.so'
+      }
+    end
+
+    around do |example|
+      original = ENV['VERBOSE']
+      ENV['VERBOSE'] = '1'
+      example.run
+      ENV['VERBOSE'] = original
+    end
+
+    it 'does not crash in verbose mode' do
+      # Create the .so file that would be produced by build
+      so_file = File.join(core_dir, 'test_libretro.so')
+      FileUtils.touch(so_file)
+
+      allow(Open3).to receive(:capture3).and_return(['', '', double(success?: true)])
+
+      result = builder.build_one('test', metadata)
+
+      expect(result).to eq(File.join(output_dir, 'test_libretro.so'))
+    end
+  end
+
+  describe 'cmake_env overrides' do
+    let(:cmake_core_dir) { File.join(cores_dir, 'libretro-cmake-test') }
+
+    before do
+      FileUtils.mkdir_p(cmake_core_dir)
+    end
+
+    let(:metadata) do
+      {
+        'repo' => 'libretro/cmake-test',
+        'build_type' => 'cmake',
+        'cmake_opts' => [],
+        'so_file' => 'cmake_test_libretro.so',
+        'cmake_env' => {
+          'CC' => 'gcc',
+          'CXX' => 'g++',
+          'CFLAGS' => ''
+        }
+      }
+    end
+
+    it 'applies cmake_env overrides to build environment' do
+      captured_env = nil
+
+      allow(builder).to receive(:run_command) do |env, *args|
+        captured_env = env if args.first == 'cmake'
+      end
+
+      allow(File).to receive(:exist?).and_call_original
+      allow(File).to receive(:exist?).with(File.join(cmake_core_dir, 'cmake_test_libretro.so')).and_return(true)
+      allow(FileUtils).to receive(:cp)
+
+      builder.build_one('cmake-test', metadata)
+
+      expect(captured_env['CC']).to eq('gcc')
+      expect(captured_env['CXX']).to eq('g++')
+      expect(captured_env['CFLAGS']).to eq('')
+    end
+  end
+
+  describe 'unknown build type' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-test') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+    end
+
+    it 'raises error for unknown build type' do
+      metadata = {
+        'repo' => 'libretro/test-core',
+        'build_type' => 'unknown',
+        'so_file' => 'test_libretro.so'
+      }
+
+      result = builder.build_one('test', metadata)
+
+      expect(result).to be_nil
+      expect(builder.failed).to eq(1)
+    end
+  end
+
+  describe 'missing build directory' do
+    it 'raises error when core directory does not exist' do
+      metadata = {
+        'repo' => 'libretro/nonexistent',
+        'build_type' => 'make',
+        'makefile' => 'Makefile',
+        'build_dir' => '.',
+        'platform' => 'unix',
+        'so_file' => 'test_libretro.so'
+      }
+
+      result = builder.build_one('nonexistent', metadata)
+
+      expect(result).to be_nil
+      expect(builder.failed).to eq(1)
+    end
+
+    it 'raises error when build_dir subdirectory does not exist' do
+      core_dir = File.join(cores_dir, 'libretro-test')
+      FileUtils.mkdir_p(core_dir)
+      # Don't create the 'platform/libretro' subdirectory
+
+      metadata = {
+        'repo' => 'libretro/test-core',
+        'build_type' => 'make',
+        'makefile' => 'Makefile',
+        'build_dir' => 'platform/libretro',
+        'platform' => 'unix',
+        'so_file' => 'test_libretro.so'
+      }
+
+      result = builder.build_one('test', metadata)
+
+      expect(result).to be_nil
+      expect(builder.failed).to eq(1)
+    end
+  end
+
+  describe 'missing makefile' do
+    it 'raises error when makefile does not exist' do
+      core_dir = File.join(cores_dir, 'libretro-test')
+      FileUtils.mkdir_p(core_dir)
+      # Don't create the Makefile
+
+      metadata = {
+        'repo' => 'libretro/test-core',
+        'build_type' => 'make',
+        'makefile' => 'Makefile.libretro',
+        'build_dir' => '.',
+        'platform' => 'unix',
+        'so_file' => 'test_libretro.so'
+      }
+
+      result = builder.build_one('test', metadata)
+
+      expect(result).to be_nil
+      expect(builder.failed).to eq(1)
+    end
+  end
+
+  describe 'missing .so file after build' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-test') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+      FileUtils.touch(File.join(core_dir, 'Makefile'))
+    end
+
+    context 'with make build' do
+      it 'raises error when .so file not produced' do
+        metadata = {
+          'repo' => 'libretro/test-core',
+          'build_type' => 'make',
+          'makefile' => 'Makefile',
+          'build_dir' => '.',
+          'platform' => 'unix',
+          'so_file' => 'test_libretro.so'
+        }
+
+        # Mock successful make but don't create .so file
+        allow(Open3).to receive(:capture3).and_return(['', '', double(success?: true)])
+
+        result = builder.build_one('test', metadata)
+
+        expect(result).to be_nil
+        expect(builder.failed).to eq(1)
+      end
+    end
+
+    context 'with cmake build' do
+      it 'raises error when .so file not produced' do
+        metadata = {
+          'repo' => 'libretro/test-core',
+          'build_type' => 'cmake',
+          'cmake_opts' => [],
+          'so_file' => 'build/test_libretro.so'
+        }
+
+        # Mock successful cmake and make but don't create .so file
+        allow(Open3).to receive(:capture3).and_return(['', '', double(success?: true)])
+
+        result = builder.build_one('test', metadata)
+
+        expect(result).to be_nil
+        expect(builder.failed).to eq(1)
+      end
+    end
+  end
+
+  describe 'output_name override' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-test') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+      FileUtils.touch(File.join(core_dir, 'Makefile'))
+    end
+
+    let(:metadata) do
+      {
+        'repo' => 'libretro/test-core',
+        'build_type' => 'make',
+        'makefile' => 'Makefile',
+        'build_dir' => '.',
+        'platform' => 'unix',
+        'so_file' => 'original_libretro.so',
+        'output_name' => 'renamed_libretro.so'
+      }
+    end
+
+    it 'uses output_name for destination file' do
+      # Create the .so file that would be produced by build
+      so_file = File.join(core_dir, 'original_libretro.so')
+      FileUtils.touch(so_file)
+
+      allow(Open3).to receive(:capture3).and_return(['', '', double(success?: true)])
+
+      result = builder.build_one('test', metadata)
+
+      expect(result).to eq(File.join(output_dir, 'renamed_libretro.so'))
+      expect(File.exist?(File.join(output_dir, 'renamed_libretro.so'))).to be true
     end
   end
 end

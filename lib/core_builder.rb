@@ -11,6 +11,8 @@ require_relative 'command_builder'
 # Build individual libretro cores with cross-compilation
 # Handles both Make and CMake builds
 class CoreBuilder
+  attr_reader :built, :failed, :skipped
+
   def initialize(cores_dir:, output_dir:, cpu_config:, logger: nil, parallel: 1, dry_run: false)
     @cores_dir = cores_dir
     @output_dir = output_dir
