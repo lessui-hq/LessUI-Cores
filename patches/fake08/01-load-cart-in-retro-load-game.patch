@@ -1,0 +1,41 @@
+From: LessUI <noreply@lessui.app>
+Subject: [PATCH] Load cart synchronously in retro_load_game
+
+fake08 violates the libretro specification by deferring cart loading
+to retro_run() instead of loading it in retro_load_game(). This breaks
+save state resume because the frontend calls retro_unserialize() after
+retro_load_game() but before retro_run() - at which point the cart
+isn't loaded yet.
+
+Fix by calling LoadCart() directly in retro_load_game() instead of
+QueueCartChange().
+
+Fixes: https://github.com/lessui-hq/LessUI/issues/78
+---
+ platform/libretro/libretro.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+--- a/platform/libretro/libretro.cpp
++++ b/platform/libretro/libretro.cpp
+@@ -747,7 +747,7 @@ EXPORT bool retro_load_game(struct retro_game_info const *info)
+     check_variables(true);
+
+     if (!info) {
+-        _vm->QueueCartChange("__FAKE08-BIOS.p8");
++        _vm->LoadCart("__FAKE08-BIOS.p8");
+         return true;
+     }
+
+@@ -759,10 +759,10 @@ EXPORT bool retro_load_game(struct retro_game_info const *info)
+
+     if (info->size > 0) {
+         const unsigned char* data = reinterpret_cast<const unsigned char*>(info->data);
+-        _vm->QueueCartChange(data, info->size);
++        _vm->LoadCart(data, info->size);
+     }
+     else {
+-        _vm->QueueCartChange(info->path);
++        _vm->LoadCart(info->path);
+     }
+
+     return true;
