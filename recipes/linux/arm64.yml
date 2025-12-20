@@ -340,20 +340,6 @@ cores:
     platform: unix
     so_file: mednafen_supafaust_libretro.so
 
-  tic80:
-    repo: libretro/TIC-80
-    target: master
-    commit: 6412f72d0f4725c153ce3d245729b829e713542e
-    build_type: cmake
-    build_dir: core
-    so_file: build/lib/tic80_libretro.so
-    submodules: true
-    cmake_opts:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DBUILD_LIBRETRO=ON
-      - -DBUILD_SDL=OFF
-      - -DBUILD_DEMO_CARTS=OFF
-
   vecx:
     repo: libretro/libretro-vecx
     target: master
