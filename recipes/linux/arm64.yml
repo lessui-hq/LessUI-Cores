@@ -42,18 +42,6 @@ cores:
     platform: unix
     so_file: atari800_libretro.so
 
-  dosbox-pure:
-    repo: libretro/dosbox-pure
-    target: main
-    commit: e8cb6683e8539757644d84278cf4deb2b0d0debc
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: dosbox_pure_libretro.so
-    extra_args:
-      - "MAKE_CPUFLAGS=-march=armv8-a+crc -mcpu=cortex-a53 -mtune=cortex-a53 -ffast-math"
-
   beetle-lynx:
     repo: libretro/beetle-lynx-libretro
     target: master
@@ -110,16 +98,6 @@ cores:
     platform: unix
     so_file: mednafen_wswan_libretro.so
 
-  bluemsx:
-    repo: libretro/blueMSX-libretro
-    target: master
-    commit: 036376d6679c9e153712dbbb3fdca774afc49706
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: unix
-    so_file: bluemsx_libretro.so
-
   fake08:
     repo: jtothebell/fake-08
     target: master
@@ -166,21 +144,6 @@ cores:
       - -DLIBRETRO=ON
       - -DUSE_OPENMP=ON
       - -DUSE_GLES=ON
-
-  fuse:
-    repo: libretro/fuse-libretro
-    target: master
-    commit: cad85b7b1b864c65734f71aa4a510b6f6536881c
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: unix
-    so_file: fuse_libretro.so
-    extra_args:
-      # Use PLATFORM_DEFINES to add flags that work with Makefile's CFLAGS += $(PLATFORM_DEFINES)
-      # Disable LTO/fast-math on aarch64 - causes relocation overflow
-      - "PLATFORM_DEFINES=-fno-lto -fno-fast-math"
-      - "LIBS=-lm"
 
   gambatte:
     repo: libretro/gambatte-libretro
@@ -335,16 +298,6 @@ cores:
     platform: unix
     so_file: prosystem_libretro.so
 
-  puae:
-    repo: libretro/libretro-uae
-    target: master
-    commit: 0043cf9c061bd9b81dbc1869c2761017139cfc63
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: puae_libretro.so
-
   race:
     repo: libretro/RACE
     target: master
@@ -354,16 +307,6 @@ cores:
     build_dir: "."
     platform: unix
     so_file: race_libretro.so
-
-  scummvm:
-    repo: libretro/scummvm
-    target: master
-    commit: 686cdd13719b92554fa46b264c512ca7deec7a96
-    build_type: make
-    makefile: Makefile
-    build_dir: backends/platform/libretro
-    platform: unix
-    so_file: backends/platform/libretro/scummvm_libretro.so
 
   snes9x2005:
     repo: libretro/snes9x2005
@@ -423,12 +366,3 @@ cores:
     extra_args:
       - HAS_GPU=0
 
-  vice:
-    repo: libretro/vice-libretro
-    target: master
-    commit: e9f8ac034ddef3025f0567768f7af8219f7cfdb8
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: vice_x64_libretro.so
