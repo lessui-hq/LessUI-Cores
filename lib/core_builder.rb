@@ -138,9 +138,13 @@ class CoreBuilder
             if system("git apply --reverse --check #{patch_file} > /dev/null 2>&1")
               @logger.detail("      (already applied, skipping)")
               next
-            else
+            end
+            # git apply failed - try patch command (handles submodule files)
+            unless system("patch -p1 --dry-run < #{patch_file} > /dev/null 2>&1")
               raise "Patch #{patch_name} doesn't apply cleanly"
             end
+            run_command({}, 'patch', '-p1', '-i', patch_file)
+            next
           end
 
           run_command({}, 'git', 'apply', patch_file)
