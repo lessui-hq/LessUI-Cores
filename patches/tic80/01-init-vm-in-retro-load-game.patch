@@ -1,0 +1,44 @@
+From: LessUI <noreply@lessui.app>
+Subject: [PATCH] Initialize VM synchronously in retro_load_game
+
+TIC-80 violates the libretro specification by deferring VM initialization
+to tic_core_tick() (called from retro_run()) instead of completing it in
+retro_load_game(). This breaks save state resume because the frontend
+calls retro_unserialize() after retro_load_game() but before retro_run() -
+at which point the VM isn't initialized and cart2ram() hasn't run.
+
+Fix by calling tic80_tick() once in retro_load_game() after tic80_load()
+to force synchronous initialization of the VM, including:
+- cart2ram() to copy cart resources to RAM
+- tic_init_vm() to initialize the script interpreter
+- BOOT function execution
+
+This matches the fix applied to fake08 for the same issue.
+---
+ core/src/system/libretro/tic80_libretro.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/core/src/system/libretro/tic80_libretro.c b/core/src/system/libretro/tic80_libretro.c
+index c830d603..6748d109 100644
+--- a/core/src/system/libretro/tic80_libretro.c
++++ b/core/src/system/libretro/tic80_libretro.c
+@@ -1030,6 +1030,19 @@ RETRO_API bool retro_load_game(const struct retro_game_info *info)
+ 	// Load the content.
+ 	// TODO: Allow loading code files directly.
+ 	tic80_load(state->tic, (void*)(info->data), (int)info->size);
++
++	// Initialize the VM synchronously to comply with libretro specification.
++	// This ensures the cart is fully loaded before retro_load_game returns,
++	// which is required for save state resume to work correctly.
++	tic80_input input = {0};
++	tic80_tick(state->tic, input);
++
++	if (state->quit) {
++		log_cb(RETRO_LOG_ERROR, "[TIC-80] Failed to initialize cart.\n");
++		retro_unload_game();
++		return false;
++	}
++
+ 	if (state->tic == NULL) {
+ 		log_cb(RETRO_LOG_ERROR, "[TIC-80] Content loaded, but failed to load game.\n");
+ 		retro_unload_game();

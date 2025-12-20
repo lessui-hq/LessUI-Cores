@@ -667,6 +667,106 @@ RSpec.describe CoreBuilder do
     end
   end
 
+  describe '#apply_patches' do
+    let(:core_dir) { File.join(cores_dir, 'libretro-patchtest') }
+    let(:patches_dir) { File.join(File.dirname(File.dirname(__FILE__)), 'patches', 'patchtest') }
+    let(:patch_file) { File.join(patches_dir, '01-test.patch') }
+
+    before do
+      FileUtils.mkdir_p(core_dir)
+      FileUtils.mkdir_p(patches_dir)
+      File.write(patch_file, "--- a/file.c\n+++ b/file.c\n@@ -1 +1 @@\n-old\n+new\n")
+    end
+
+    after do
+      FileUtils.rm_rf(patches_dir)
+    end
+
+    context 'in a git repo when git apply succeeds' do
+      it 'applies patch using git apply' do
+        Dir.chdir(core_dir) do
+          # Simulate being in a git repo
+          allow_any_instance_of(Object).to receive(:system).and_call_original
+          allow_any_instance_of(Object).to receive(:system).with('git rev-parse --git-dir > /dev/null 2>&1').and_return(true)
+          # git apply --check succeeds
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --check/).and_return(true)
+
+          expect(builder).to receive(:run_command).with({}, 'git', 'apply', patch_file)
+
+          builder.send(:apply_patches, 'patchtest', core_dir)
+        end
+      end
+    end
+
+    context 'in a git repo when patch is already applied' do
+      it 'skips the patch' do
+        Dir.chdir(core_dir) do
+          allow_any_instance_of(Object).to receive(:system).and_call_original
+          allow_any_instance_of(Object).to receive(:system).with('git rev-parse --git-dir > /dev/null 2>&1').and_return(true)
+          # git apply --check fails
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --check/).and_return(false)
+          # git apply --reverse --check succeeds (patch already applied)
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --reverse --check/).and_return(true)
+
+          expect(builder).not_to receive(:run_command)
+
+          builder.send(:apply_patches, 'patchtest', core_dir)
+        end
+      end
+    end
+
+    context 'in a git repo when git apply fails but patch command works (submodule files)' do
+      it 'falls back to patch command' do
+        Dir.chdir(core_dir) do
+          allow_any_instance_of(Object).to receive(:system).and_call_original
+          allow_any_instance_of(Object).to receive(:system).with('git rev-parse --git-dir > /dev/null 2>&1').and_return(true)
+          # git apply --check fails
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --check/).and_return(false)
+          # git apply --reverse --check fails (not already applied)
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --reverse --check/).and_return(false)
+          # patch --dry-run succeeds
+          allow_any_instance_of(Object).to receive(:system).with(/patch -p1 --dry-run/).and_return(true)
+
+          expect(builder).to receive(:run_command).with({}, 'patch', '-p1', '-i', patch_file)
+
+          builder.send(:apply_patches, 'patchtest', core_dir)
+        end
+      end
+    end
+
+    context 'in a git repo when both git apply and patch command fail' do
+      it 'raises an error' do
+        Dir.chdir(core_dir) do
+          allow_any_instance_of(Object).to receive(:system).and_call_original
+          allow_any_instance_of(Object).to receive(:system).with('git rev-parse --git-dir > /dev/null 2>&1').and_return(true)
+          # git apply --check fails
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --check/).and_return(false)
+          # git apply --reverse --check fails
+          allow_any_instance_of(Object).to receive(:system).with(/git apply --reverse --check/).and_return(false)
+          # patch --dry-run fails
+          allow_any_instance_of(Object).to receive(:system).with(/patch -p1 --dry-run/).and_return(false)
+
+          expect {
+            builder.send(:apply_patches, 'patchtest', core_dir)
+          }.to raise_error(/doesn't apply cleanly/)
+        end
+      end
+    end
+
+    context 'when not in a git repo' do
+      it 'uses patch command directly' do
+        Dir.chdir(core_dir) do
+          allow_any_instance_of(Object).to receive(:system).and_call_original
+          allow_any_instance_of(Object).to receive(:system).with('git rev-parse --git-dir > /dev/null 2>&1').and_return(false)
+
+          expect(builder).to receive(:run_command).with({}, 'patch', '-p1', '-i', patch_file)
+
+          builder.send(:apply_patches, 'patchtest', core_dir)
+        end
+      end
+    end
+  end
+
   describe 'VERBOSE mode' do
     let(:core_dir) { File.join(cores_dir, 'libretro-test') }
 
