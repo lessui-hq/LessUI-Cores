@@ -209,6 +209,8 @@ cores:
     build_dir: "."
     platform: armv7ve_neon_hardfloat
     so_file: mupen64plus_next_libretro.so
+    extra_args:
+      - FORCE_GLES=1
 
   mame2003-plus:
     repo: libretro/mame2003-plus-libretro
@@ -280,6 +282,7 @@ cores:
       - -DAPPLE=OFF
       - -DUSE_DISCORD=OFF
       - -DUSING_FBDEV=OFF
+      - -DUSING_GLES2=ON
       - -DUNITTEST=OFF
       - -DSIMULATOR=OFF
       - -DENABLE_CTEST=OFF
