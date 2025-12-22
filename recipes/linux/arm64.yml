@@ -32,6 +32,16 @@ config:
 
 # Core definitions
 cores:
+  a5200:
+    repo: libretro/a5200
+    target: master
+    commit: 526404072821bb2021fab16f8c5dbbca300512c8
+    build_type: make
+    makefile: Makefile
+    build_dir: "."
+    platform: unix
+    so_file: a5200_libretro.so
+
   atari800:
     repo: libretro/libretro-atari800
     target: master
