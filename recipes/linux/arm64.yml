@@ -32,15 +32,15 @@ config:
 
 # Core definitions
 cores:
-  atari800:
-    repo: libretro/libretro-atari800
+  a5200:
+    repo: libretro/a5200
     target: master
-    commit: 630f2346a1dabefdcf534880a48e3e200e2cc551
+    commit: 526404072821bb2021fab16f8c5dbbca300512c8
     build_type: make
     makefile: Makefile
     build_dir: "."
     platform: unix
-    so_file: atari800_libretro.so
+    so_file: a5200_libretro.so
 
   beetle-lynx:
     repo: libretro/beetle-lynx-libretro
@@ -321,14 +321,14 @@ cores:
       - USE_BLARGG_APU=1
 
   stella:
-    repo: stella-emu/stella
-    target: 6.7.1
-    commit: bbef85b3da5ea0f0b6a8d06df5eea7b603bbec94
+    repo: libretro/stella2014-libretro
+    target: master
+    commit: 3cc89f0d316d6c924a5e3f4011d17421df58e615
     build_type: make
     makefile: Makefile
-    build_dir: src/libretro
+    build_dir: "."
     platform: unix
-    so_file: src/libretro/stella_libretro.so
+    so_file: stella2014_libretro.so
 
   supafaust:
     repo: libretro/supafaust
