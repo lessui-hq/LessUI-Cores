@@ -42,16 +42,6 @@ cores:
     platform: classic_armv7_a7
     so_file: a5200_libretro.so
 
-  atari800:
-    repo: libretro/libretro-atari800
-    target: master
-    commit: 630f2346a1dabefdcf534880a48e3e200e2cc551
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: classic_armv7_a7
-    so_file: atari800_libretro.so
-
   beetle-lynx:
     repo: libretro/beetle-lynx-libretro
     target: master
