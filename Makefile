@@ -1,10 +1,10 @@
-# minarch-cores - Build libretro cores for ARM devices
+# lessui-cores - Build libretro cores for ARM devices
 # Architecture-based builds for optimal performance
 
 .PHONY: all help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test update-recipes-% update-recipes-all update-core-%
 
 # Docker configuration
-DOCKER_IMAGE := minarch-cores-builder
+DOCKER_IMAGE := lessui-cores-builder
 # Platform: Set PLATFORM=amd64 to force x86_64 (for testing GitHub Actions environment)
 # Default: uses native architecture (ARM64 on Apple Silicon, x86_64 elsewhere)
 ifdef PLATFORM
@@ -30,7 +30,7 @@ all: build-all package-all
 	@echo "Packages ready in output/dist/"
 
 help:
-	@echo "minarch-cores - ARM libretro core builder (MinUI-focused)"
+	@echo "lessui-cores - ARM libretro core builder"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make all             Build and package everything"

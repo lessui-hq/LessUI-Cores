@@ -48,7 +48,7 @@ class CoresBuilder
   end
 
   def run
-    @logger.section("minarch-cores Build System")
+    @logger.section("lessui-cores Build System")
     @logger.info("CPU Family: #{@cpu_family}")
     @logger.info("Architecture: #{@cpu_config.arch}")
 
