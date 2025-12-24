@@ -27,8 +27,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
-        run: make docker-build
+      - name: Build Docker image (with cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: minarch-cores-builder:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Clean previous builds
         run: make clean
