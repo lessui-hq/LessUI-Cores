@@ -112,20 +112,6 @@ cores:
     extra_args:
       - LDFLAGS+=-lpthread
 
-  flycast:
-    repo: flyinghead/flycast
-    target: v2.0
-    commit: aa97a6d64fb47d3ce0febaa575b26d975dd916e4
-    build_type: cmake
-    so_file: build/flycast_libretro.so
-    submodules: true
-    cmake_opts:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_SYSTEM_NAME=Linux
-      - -DLIBRETRO=ON
-      - -DUSE_OPENMP=ON
-      - -DUSE_GLES=ON
-
   fceumm:
     repo: libretro/libretro-fceumm
     target: master
@@ -169,18 +155,6 @@ cores:
     build_dir: "."
     platform: classic_armv7_a7
     so_file: mgba_libretro.so
-
-  mupen64plus-next:
-    repo: libretro/mupen64plus-libretro-nx
-    target: develop
-    commit: 680e033fc8ed1a49df7b156d97164e0050ee13bc
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: armv7ve_neon_hardfloat
-    so_file: mupen64plus_next_libretro.so
-    extra_args:
-      - FORCE_GLES=1
 
   mame2003-plus:
     repo: libretro/mame2003-plus-libretro
@@ -232,37 +206,6 @@ cores:
     build_dir: "."
     platform: classic_armv7_a7
     so_file: pokemini_libretro.so
-
-  ppsspp:
-    repo: hrydgard/ppsspp
-    target: v1.19.3
-    commit: a0cd10949c4c3738c47adce9f673700c13f08645
-    build_type: cmake
-    so_file: build/lib/ppsspp_libretro.so
-    submodules: true
-    prebuild_script: build-ppsspp-ffmpeg.sh
-    cmake_opts:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DBUILD_SHARED_LIBS=OFF
-      - -DCMAKE_SYSTEM_NAME=Linux
-      - -DLIBRETRO=ON
-      - -DARMV7=ON
-      - -DANDROID=OFF
-      - -DWIN32=OFF
-      - -DAPPLE=OFF
-      - -DUSE_DISCORD=OFF
-      - -DUSING_FBDEV=OFF
-      - -DUSING_GLES2=ON
-      - -DUNITTEST=OFF
-      - -DSIMULATOR=OFF
-      - -DENABLE_CTEST=OFF
-      - -DVULKAN=OFF
-      - -DUSE_WAYLAND_WSI=OFF
-      - -DUSING_X11_VULKAN=OFF
-      - -DCMAKE_C_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DCMAKE_CXX_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DUSE_FFMPEG=ON
-      - -DUSE_SYSTEM_FFMPEG=OFF
 
   prosystem:
     repo: libretro/prosystem-libretro
