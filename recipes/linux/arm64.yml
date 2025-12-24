@@ -132,7 +132,7 @@ cores:
     cmake_opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DLIBRETRO=ON
-      - -DUSE_OPENMP=ON
+      - -DUSE_OPENMP=OFF
       - -DUSE_GLES=ON
 
   gambatte:
