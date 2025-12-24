@@ -262,8 +262,8 @@ cores:
 
   ppsspp:
     repo: hrydgard/ppsspp
-    target: v1.18.1
-    commit: 98a8583b1783af766423ec799e82d5829a7f496d
+    target: v1.19.3
+    commit: a0cd10949c4c3738c47adce9f673700c13f08645
     build_type: cmake
     so_file: build/lib/ppsspp_libretro.so
     submodules: true
