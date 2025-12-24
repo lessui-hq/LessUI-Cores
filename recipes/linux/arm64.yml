@@ -66,16 +66,6 @@ cores:
     extra_args:
       - NEED_BPP=16
 
-  beetle-supergrafx:
-    repo: libretro/beetle-supergrafx-libretro
-    target: master
-    commit: a776133c34ae8da5daf7d9ccb43e3e292e2b07b0
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: mednafen_supergrafx_libretro.so
-
   beetle-vb:
     repo: libretro/beetle-vb-libretro
     target: master
@@ -166,26 +156,6 @@ cores:
     build_dir: "."
     platform: arm64
     so_file: gpsp_libretro.so
-
-  gw:
-    repo: libretro/gw-libretro
-    target: master
-    commit: 435e5cfd4bf6aea03a84259e9b8dba3daf3ff5bd
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: unix
-    so_file: gw_libretro.so
-
-  melonds:
-    repo: libretro/melonds
-    target: master
-    commit: 7a3c11ff970cd36ca806961fae6db94b30dd5401
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: melonds_libretro.so
 
   mgba:
     repo: libretro/mgba
@@ -343,15 +313,4 @@ cores:
     platform: unix
     so_file: mednafen_supafaust_libretro.so
 
-  vecx:
-    repo: libretro/libretro-vecx
-    target: master
-    commit: 841229a6a81a0461d08af6488f252dcec5266c6a
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: unix
-    so_file: vecx_libretro.so
-    extra_args:
-      - HAS_GPU=0
 
