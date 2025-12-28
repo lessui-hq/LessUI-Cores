@@ -248,7 +248,7 @@ cores:
       - -DWIN32=OFF
       - -DAPPLE=OFF
       - -DUSE_DISCORD=OFF
-      - -DUSING_FBDEV=ON
+      - -DUSING_FBDEV=OFF
       - -DUSING_GLES2=ON
       - -DUNITTEST=OFF
       - -DSIMULATOR=OFF
