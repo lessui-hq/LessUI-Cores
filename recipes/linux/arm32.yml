@@ -1,4 +1,4 @@
-# minarch-cores Recipe: arm32
+# lessui-cores Recipe: arm32
 # Architecture: ARMv7VE with NEON-VFPv4
 # Target Devices: Miyoo Mini, Miyoo Mini Plus, A30, Trimui Smart
 #
@@ -66,16 +66,6 @@ cores:
     extra_args:
       - NEED_BPP=16
 
-  beetle-supergrafx:
-    repo: libretro/beetle-supergrafx-libretro
-    target: master
-    commit: a776133c34ae8da5daf7d9ccb43e3e292e2b07b0
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: classic_armv7_a7
-    so_file: mednafen_supergrafx_libretro.so
-
   beetle-vb:
     repo: libretro/beetle-vb-libretro
     target: master
@@ -122,20 +112,6 @@ cores:
     extra_args:
       - LDFLAGS+=-lpthread
 
-  flycast:
-    repo: flyinghead/flycast
-    target: v2.0
-    commit: aa97a6d64fb47d3ce0febaa575b26d975dd916e4
-    build_type: cmake
-    so_file: build/flycast_libretro.so
-    submodules: true
-    cmake_opts:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_SYSTEM_NAME=Linux
-      - -DLIBRETRO=ON
-      - -DUSE_OPENMP=ON
-      - -DUSE_GLES=ON
-
   fceumm:
     repo: libretro/libretro-fceumm
     target: master
@@ -170,26 +146,6 @@ cores:
     platform: classic_armv7_a7
     so_file: gpsp_libretro.so
 
-  gw:
-    repo: libretro/gw-libretro
-    target: master
-    commit: 435e5cfd4bf6aea03a84259e9b8dba3daf3ff5bd
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: classic_armv7_a7
-    so_file: gw_libretro.so
-
-  melonds:
-    repo: libretro/melonds
-    target: master
-    commit: 7a3c11ff970cd36ca806961fae6db94b30dd5401
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: classic_armv7_a7
-    so_file: melonds_libretro.so
-
   mgba:
     repo: libretro/mgba
     target: master
@@ -199,18 +155,6 @@ cores:
     build_dir: "."
     platform: classic_armv7_a7
     so_file: mgba_libretro.so
-
-  mupen64plus-next:
-    repo: libretro/mupen64plus-libretro-nx
-    target: develop
-    commit: 680e033fc8ed1a49df7b156d97164e0050ee13bc
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: armv7ve_neon_hardfloat
-    so_file: mupen64plus_next_libretro.so
-    extra_args:
-      - FORCE_GLES=1
 
   mame2003-plus:
     repo: libretro/mame2003-plus-libretro
@@ -262,37 +206,6 @@ cores:
     build_dir: "."
     platform: classic_armv7_a7
     so_file: pokemini_libretro.so
-
-  ppsspp:
-    repo: hrydgard/ppsspp
-    target: v1.18.1
-    commit: 98a8583b1783af766423ec799e82d5829a7f496d
-    build_type: cmake
-    so_file: build/lib/ppsspp_libretro.so
-    submodules: true
-    prebuild_script: build-ppsspp-ffmpeg.sh
-    cmake_opts:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DBUILD_SHARED_LIBS=OFF
-      - -DCMAKE_SYSTEM_NAME=Linux
-      - -DLIBRETRO=ON
-      - -DARMV7=ON
-      - -DANDROID=OFF
-      - -DWIN32=OFF
-      - -DAPPLE=OFF
-      - -DUSE_DISCORD=OFF
-      - -DUSING_FBDEV=OFF
-      - -DUSING_GLES2=ON
-      - -DUNITTEST=OFF
-      - -DSIMULATOR=OFF
-      - -DENABLE_CTEST=OFF
-      - -DVULKAN=OFF
-      - -DUSE_WAYLAND_WSI=OFF
-      - -DUSING_X11_VULKAN=OFF
-      - -DCMAKE_C_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DCMAKE_CXX_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DUSE_FFMPEG=ON
-      - -DUSE_SYSTEM_FFMPEG=OFF
 
   prosystem:
     repo: libretro/prosystem-libretro
@@ -347,15 +260,4 @@ cores:
     platform: unix
     so_file: mednafen_supafaust_libretro.so
 
-  vecx:
-    repo: libretro/libretro-vecx
-    target: master
-    commit: 841229a6a81a0461d08af6488f252dcec5266c6a
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: classic_armv7_a7
-    so_file: vecx_libretro.so
-    extra_args:
-      - HAS_GPU=0
 

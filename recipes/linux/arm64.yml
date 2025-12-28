@@ -1,4 +1,4 @@
-# minarch-cores Recipe: arm64
+# lessui-cores Recipe: arm64
 # Architecture: ARMv8-A+CRC with NEON (64-bit)
 # Target Devices: Anbernic RG28xx/35xx/40xx, Trimui, CubeXX
 #
@@ -66,16 +66,6 @@ cores:
     extra_args:
       - NEED_BPP=16
 
-  beetle-supergrafx:
-    repo: libretro/beetle-supergrafx-libretro
-    target: master
-    commit: a776133c34ae8da5daf7d9ccb43e3e292e2b07b0
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: mednafen_supergrafx_libretro.so
-
   beetle-vb:
     repo: libretro/beetle-vb-libretro
     target: master
@@ -142,7 +132,7 @@ cores:
     cmake_opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DLIBRETRO=ON
-      - -DUSE_OPENMP=ON
+      - -DUSE_OPENMP=OFF
       - -DUSE_GLES=ON
 
   gambatte:
@@ -166,26 +156,6 @@ cores:
     build_dir: "."
     platform: arm64
     so_file: gpsp_libretro.so
-
-  gw:
-    repo: libretro/gw-libretro
-    target: master
-    commit: 435e5cfd4bf6aea03a84259e9b8dba3daf3ff5bd
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: unix
-    so_file: gw_libretro.so
-
-  melonds:
-    repo: libretro/melonds
-    target: master
-    commit: 7a3c11ff970cd36ca806961fae6db94b30dd5401
-    build_type: make
-    makefile: Makefile
-    build_dir: "."
-    platform: unix
-    so_file: melonds_libretro.so
 
   mgba:
     repo: libretro/mgba
@@ -262,8 +232,8 @@ cores:
 
   ppsspp:
     repo: hrydgard/ppsspp
-    target: v1.18.1
-    commit: 98a8583b1783af766423ec799e82d5829a7f496d
+    target: v1.19.3
+    commit: a0cd10949c4c3738c47adce9f673700c13f08645
     build_type: cmake
     so_file: build/lib/ppsspp_libretro.so
     submodules: true
@@ -286,8 +256,7 @@ cores:
       - -DVULKAN=OFF
       - -DUSE_WAYLAND_WSI=OFF
       - -DUSING_X11_VULKAN=OFF
-      - -DCMAKE_C_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
-      - -DCMAKE_CXX_FLAGS=-DEGL_NO_X11=1 -DMESA_EGL_NO_X11_HEADERS=1
+      - -DCMAKE_DISABLE_FIND_PACKAGE_X11=TRUE
       - -DUSE_FFMPEG=ON
       - -DUSE_SYSTEM_FFMPEG=OFF
 
@@ -343,15 +312,4 @@ cores:
     platform: unix
     so_file: mednafen_supafaust_libretro.so
 
-  vecx:
-    repo: libretro/libretro-vecx
-    target: master
-    commit: 841229a6a81a0461d08af6488f252dcec5266c6a
-    build_type: make
-    makefile: Makefile.libretro
-    build_dir: "."
-    platform: unix
-    so_file: vecx_libretro.so
-    extra_args:
-      - HAS_GPU=0
 
