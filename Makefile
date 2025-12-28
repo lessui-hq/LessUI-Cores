@@ -1,10 +1,10 @@
-# minarch-cores - Build libretro cores for ARM devices
+# lessui-cores - Build libretro cores for ARM devices
 # Architecture-based builds for optimal performance
 
-.PHONY: help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test update-recipes-% update-recipes-all update-core-%
+.PHONY: all help docker-build build-% build-all core-% package-% package-all list-cores clean-% clean shell release test update-recipes-% update-recipes-all update-core-%
 
 # Docker configuration
-DOCKER_IMAGE := minarch-cores-builder
+DOCKER_IMAGE := lessui-cores-builder
 # Platform: Set PLATFORM=amd64 to force x86_64 (for testing GitHub Actions environment)
 # Default: uses native architecture (ARM64 on Apple Silicon, x86_64 elsewhere)
 ifdef PLATFORM
@@ -23,12 +23,18 @@ CPU_FAMILIES := arm32 arm64
 # Build parallelism (default to 8 jobs for optimal build speed)
 JOBS ?= 8
 
+# Default target: build and package everything
+all: build-all package-all
+	@echo ""
+	@echo "=== All Done ==="
+	@echo "Packages ready in output/dist/"
+
 help:
-	@echo "minarch-cores - ARM libretro core builder (MinUI-focused)"
+	@echo "lessui-cores - ARM libretro core builder"
 	@echo ""
 	@echo "Quick Start:"
-	@echo "  1. Build cores:      make build-arm64"
-	@echo "  2. Build all:        make build-all"
+	@echo "  make all             Build and package everything"
+	@echo "  make build-arm64     Build cores for one architecture"
 	@echo ""
 	@echo "Architectures:"
 	@echo "  make build-arm32    ARMv7VE + NEON-VFPv4 (All ARM32 devices)"
