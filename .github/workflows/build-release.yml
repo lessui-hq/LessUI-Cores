@@ -5,6 +5,10 @@ on:
     tags:
       - "[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9]*" # Match YYYYMMDD-N format (e.g., 20251115-0)
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # Don't cancel releases mid-build
+
 permissions:
   contents: write # Required for creating releases and pushing tags
 
@@ -12,6 +16,8 @@ jobs:
   docker-build:
     runs-on: sprinters:aws:ubuntu-24.04-arm:c7gd.xlarge:temp=32
     timeout-minutes: 30
+    outputs:
+      cache-hit: ${{ steps.cache-docker.outputs.cache-hit }}
 
     steps:
       - name: Checkout code
@@ -20,10 +26,41 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Calculate Dockerfile hash
+        id: dockerfile-hash
+        run: |
+          HASH=$(sha256sum Dockerfile | awk '{print $1}')
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+          echo "Dockerfile hash: $HASH"
+
+      - name: Cache Docker image
+        id: cache-docker
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-image.tar
+          key: docker-image-${{ runner.os }}-${{ runner.arch }}-${{ steps.dockerfile-hash.outputs.hash }}
+          restore-keys: |
+            docker-image-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Load cached Docker image
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        id: load-cache
+        run: |
+          echo "Loading cached Docker image..."
+          if docker load -i /tmp/docker-image.tar; then
+            echo "✓ Cached image loaded (skipped 28 min build!)"
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Cache corrupted, will rebuild"
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Docker Buildx
+        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image (with cache)
+        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -31,6 +68,13 @@ jobs:
           tags: lessui-cores-builder:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Save Docker image to cache
+        if: steps.cache-docker.outputs.cache-hit != 'true'
+        run: |
+          echo "Saving Docker image to cache..."
+          docker save lessui-cores-builder:latest -o /tmp/docker-image.tar
+          echo "✓ Image saved to cache"
 
   build:
     needs: docker-build
@@ -48,10 +92,40 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Calculate Dockerfile hash
+        id: dockerfile-hash
+        run: |
+          HASH=$(sha256sum Dockerfile | awk '{print $1}')
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+
+      - name: Restore cached Docker image
+        id: cache-docker
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/docker-image.tar
+          key: docker-image-${{ runner.os }}-${{ runner.arch }}-${{ steps.dockerfile-hash.outputs.hash }}
+          restore-keys: |
+            docker-image-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Load Docker image
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        id: load-cache
+        run: |
+          echo "Loading cached Docker image..."
+          if docker load -i /tmp/docker-image.tar; then
+            echo "✓ Image loaded from cache (instant!)"
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Cache corrupted, will rebuild"
+            echo "success=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Docker Buildx
+        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (from cache)
+      - name: Build Docker image (fallback)
+        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -121,7 +195,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 1  # Only need current commit for release
 
       - name: Download build artifacts
         uses: actions/download-artifact@v4
