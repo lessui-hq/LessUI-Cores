@@ -1,7 +1,7 @@
 # lessui-cores - Build libretro cores for ARM devices
 # Architecture-based builds for optimal performance
 
-.PHONY: all help list-cores build-% build-all core-% package-% package-all clean-% clean docker-build shell release test update-recipes-% update-recipes-all update-core-%
+.PHONY: all help docker-build build-% build-all core-% package-% package-all list-cores clean-% clean shell release test update-recipes-% update-recipes-all update-core-%
 
 # Docker configuration
 DOCKER_IMAGE := lessui-cores-builder

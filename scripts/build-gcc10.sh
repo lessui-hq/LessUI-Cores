@@ -16,9 +16,6 @@ INSTALL_PREFIX="/opt/gcc-10"
 BUILD_DIR="/tmp/gcc-build"
 JOBS="${JOBS:-$(nproc)}"
 
-# ARM32 sysroot (Debian multiarch)
-ARM32_SYSROOT="/usr/arm-linux-gnueabihf"
-
 log() { echo "=== $1 ==="; }
 
 mkdir -p "$BUILD_DIR"
@@ -33,14 +30,22 @@ apt-get install -y --no-install-recommends \
     libgmp-dev libmpfr-dev libmpc-dev libisl-dev \
     texinfo flex bison file
 
-# Download sources
+# Download sources with checksum verification (using GitHub mirrors for reliability)
 log "Downloading GCC $GCC_VERSION"
-[ -f "gcc-$GCC_VERSION.tar.xz" ] || wget -q "https://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.xz"
-tar xf "gcc-$GCC_VERSION.tar.xz"
+if [ ! -f "gcc-$GCC_VERSION.tar.gz" ]; then
+    wget -q "https://github.com/gcc-mirror/gcc/archive/refs/tags/releases/gcc-$GCC_VERSION.tar.gz" -O "gcc-$GCC_VERSION.tar.gz"
+    echo "d8939bf71b89a8a8054b05254405135f1e7a15eb628c9a8a7afbc77b3a3819de45f6d0b18c627af7fd56ae1879f8aac668063011023f8154d58ef042b20fc6df  gcc-$GCC_VERSION.tar.gz" | sha512sum -c -
+fi
+tar xf "gcc-$GCC_VERSION.tar.gz"
+mv "gcc-releases-gcc-$GCC_VERSION" "gcc-$GCC_VERSION"
 
 log "Downloading binutils $BINUTILS_VERSION"
-[ -f "binutils-$BINUTILS_VERSION.tar.xz" ] || wget -q "https://ftp.gnu.org/gnu/binutils/binutils-$BINUTILS_VERSION.tar.xz"
-tar xf "binutils-$BINUTILS_VERSION.tar.xz"
+if [ ! -f "binutils-$BINUTILS_VERSION.tar.gz" ]; then
+    wget -q "https://github.com/bminor/binutils-gdb/archive/refs/tags/binutils-2_36_1.tar.gz" -O "binutils-$BINUTILS_VERSION.tar.gz"
+    echo "a231ebc96936bd3b841820eb3e633f2dc4a5bf386a89dc9d8c633f02487da8d29fb2e92692e893f1e19e1843503bffc372b6cacddb038a6db29f361a9bfe55be  binutils-$BINUTILS_VERSION.tar.gz" | sha512sum -c -
+fi
+tar xf "binutils-$BINUTILS_VERSION.tar.gz"
+mv "binutils-gdb-binutils-2_36_1" "binutils-$BINUTILS_VERSION"
 
 # Build native GCC 10 (used for ARM64 cores)
 log "Building native GCC $GCC_VERSION (for ARM64 cores)"
@@ -74,7 +79,7 @@ mkdir -p build-binutils-arm32 && cd build-binutils-arm32
 ../binutils-$BINUTILS_VERSION/configure \
     --prefix="$INSTALL_PREFIX" \
     --target=arm-linux-gnueabihf \
-    --with-sysroot="$ARM32_SYSROOT" \
+    --with-sysroot=/ \
     --disable-nls \
     --disable-werror
 
@@ -83,13 +88,14 @@ make install
 cd ..
 
 # Build GCC cross-compiler for ARM32
+# Use system root (/) as sysroot - Debian multiarch will handle finding armhf headers/libs
 log "Building GCC cross-compiler for arm-linux-gnueabihf (for ARM32 cores)"
 mkdir -p build-gcc-arm32 && cd build-gcc-arm32
 
 ../gcc-$GCC_VERSION/configure \
     --prefix="$INSTALL_PREFIX" \
     --target=arm-linux-gnueabihf \
-    --with-sysroot="$ARM32_SYSROOT" \
+    --with-sysroot=/ \
     --enable-languages=c,c++ \
     --disable-multilib \
     --disable-nls \

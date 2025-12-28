@@ -3,7 +3,7 @@
 # Builds GCC 10.5.0 for modern C++ support while maintaining ABI compatibility
 #
 # Host: ARM64 (aarch64)
-# Targets: ARM64 (native), ARM32 (cross-compilation)
+# Compilation targets: ARM64 (native), ARM32 (cross-compilation)
 
 FROM debian/eol:buster-slim AS gcc-builder
 
@@ -27,11 +27,15 @@ ENV GCC_VERSION=10.5.0 \
 
 WORKDIR /build
 
-# Download sources
-RUN wget -q "https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz" && \
-    wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz" && \
-    tar xf gcc-${GCC_VERSION}.tar.xz && \
-    tar xf binutils-${BINUTILS_VERSION}.tar.xz
+# Download sources with checksum verification (using GitHub mirrors for reliability)
+RUN wget -q "https://github.com/gcc-mirror/gcc/archive/refs/tags/releases/gcc-${GCC_VERSION}.tar.gz" -O gcc-${GCC_VERSION}.tar.gz && \
+    echo "d8939bf71b89a8a8054b05254405135f1e7a15eb628c9a8a7afbc77b3a3819de45f6d0b18c627af7fd56ae1879f8aac668063011023f8154d58ef042b20fc6df  gcc-${GCC_VERSION}.tar.gz" | sha512sum -c - && \
+    wget -q "https://github.com/bminor/binutils-gdb/archive/refs/tags/binutils-2_36_1.tar.gz" -O binutils-${BINUTILS_VERSION}.tar.gz && \
+    echo "a231ebc96936bd3b841820eb3e633f2dc4a5bf386a89dc9d8c633f02487da8d29fb2e92692e893f1e19e1843503bffc372b6cacddb038a6db29f361a9bfe55be  binutils-${BINUTILS_VERSION}.tar.gz" | sha512sum -c - && \
+    tar xf gcc-${GCC_VERSION}.tar.gz && \
+    tar xf binutils-${BINUTILS_VERSION}.tar.gz && \
+    mv gcc-releases-gcc-${GCC_VERSION} gcc-${GCC_VERSION} && \
+    mv binutils-gdb-binutils-2_36_1 binutils-${BINUTILS_VERSION}
 
 # Build native GCC 10 (for ARM64 cores)
 RUN mkdir build-gcc-native && cd build-gcc-native && \
@@ -232,7 +236,8 @@ RUN cd /tmp && \
     cd / && rm -rf /tmp/liblcf
 
 # Upgrade CMake to 3.22 (Debian Buster has 3.13.4, but ppsspp needs 3.16+)
-RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.22.1/cmake-3.22.1-linux-aarch64.tar.gz && \
+RUN wget -q "https://github.com/Kitware/CMake/releases/download/v3.22.1/cmake-3.22.1-linux-aarch64.tar.gz" && \
+    echo "601443375aa1a48a1a076bda7e3cca73af88400463e166fffc3e1da3ce03540b  cmake-3.22.1-linux-aarch64.tar.gz" | sha256sum -c - && \
     tar -xzf cmake-3.22.1-linux-aarch64.tar.gz -C /opt && \
     ln -sf /opt/cmake-3.22.1-linux-aarch64/bin/cmake /usr/local/bin/cmake && \
     ln -sf /opt/cmake-3.22.1-linux-aarch64/bin/ctest /usr/local/bin/ctest && \
