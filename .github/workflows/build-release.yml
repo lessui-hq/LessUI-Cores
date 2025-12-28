@@ -65,6 +65,7 @@ jobs:
       - name: Build ${{ matrix.cpu }}
         env:
           JOBS: 4
+          SKIP_DOCKER_BUILD: 1
         run: |
           echo "Starting build for ${{ matrix.cpu }} at $(date)"
           make build-${{ matrix.cpu }}
@@ -122,10 +123,44 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download all artifacts
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: linux-*
           path: artifacts
+
+      - name: Download build info artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-info-*
+          path: artifacts
+
+      - name: Verify downloads
+        run: |
+          echo "Checking downloaded artifacts..."
+          ls -lR artifacts/
+
+          # Verify packages exist
+          if [ ! -f "artifacts/linux-arm32/linux-arm32.zip" ]; then
+            echo "ERROR: linux-arm32.zip not found"
+            exit 1
+          fi
+          if [ ! -f "artifacts/linux-arm64/linux-arm64.zip" ]; then
+            echo "ERROR: linux-arm64.zip not found"
+            exit 1
+          fi
+
+          # Verify build info exists
+          if [ ! -f "artifacts/build-info-arm32/core-count-arm32.txt" ]; then
+            echo "ERROR: core-count-arm32.txt not found"
+            exit 1
+          fi
+          if [ ! -f "artifacts/build-info-arm64/core-count-arm64.txt" ]; then
+            echo "ERROR: core-count-arm64.txt not found"
+            exit 1
+          fi
+
+          echo "✓ All required artifacts downloaded"
 
       - name: Organize artifacts
         run: |
