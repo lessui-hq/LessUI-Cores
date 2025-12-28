@@ -9,13 +9,9 @@ permissions:
   contents: write # Required for creating releases and pushing tags
 
 jobs:
-  build:
+  docker-build:
     runs-on: sprinters:aws:ubuntu-24.04-arm:c7gd.xlarge:temp=32
-    timeout-minutes: 120 # 2 hours max per architecture
-    strategy:
-      matrix:
-        cpu: [arm32, arm64]
-      fail-fast: false # Continue other builds even if one fails
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
@@ -35,6 +31,33 @@ jobs:
           tags: lessui-cores-builder:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build:
+    needs: docker-build
+    runs-on: sprinters:aws:ubuntu-24.04-arm:c7gd.xlarge:temp=32
+    timeout-minutes: 120 # 2 hours max per architecture
+    strategy:
+      matrix:
+        cpu: [arm32, arm64]
+      fail-fast: false # Continue other builds even if one fails
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (from cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: lessui-cores-builder:latest
+          cache-from: type=gha
 
       - name: Clean previous builds
         run: make clean

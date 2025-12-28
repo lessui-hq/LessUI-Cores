@@ -27,15 +27,13 @@ ENV GCC_VERSION=10.5.0 \
 
 WORKDIR /build
 
-# Download sources with checksum verification (using GitHub mirrors for reliability)
-RUN wget -q "https://github.com/gcc-mirror/gcc/archive/refs/tags/releases/gcc-${GCC_VERSION}.tar.gz" -O gcc-${GCC_VERSION}.tar.gz && \
-    echo "d8939bf71b89a8a8054b05254405135f1e7a15eb628c9a8a7afbc77b3a3819de45f6d0b18c627af7fd56ae1879f8aac668063011023f8154d58ef042b20fc6df  gcc-${GCC_VERSION}.tar.gz" | sha512sum -c - && \
-    wget -q "https://github.com/bminor/binutils-gdb/archive/refs/tags/binutils-2_36_1.tar.gz" -O binutils-${BINUTILS_VERSION}.tar.gz && \
-    echo "a231ebc96936bd3b841820eb3e633f2dc4a5bf386a89dc9d8c633f02487da8d29fb2e92692e893f1e19e1843503bffc372b6cacddb038a6db29f361a9bfe55be  binutils-${BINUTILS_VERSION}.tar.gz" | sha512sum -c - && \
-    tar xf gcc-${GCC_VERSION}.tar.gz && \
-    tar xf binutils-${BINUTILS_VERSION}.tar.gz && \
-    mv gcc-releases-gcc-${GCC_VERSION} gcc-${GCC_VERSION} && \
-    mv binutils-gdb-binutils-2_36_1 binutils-${BINUTILS_VERSION}
+# Download sources with checksum verification (using GNU ftpmirror for reliability)
+RUN wget -q "https://ftpmirror.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz" && \
+    echo "d86dbc18b978771531f4039465e7eb7c19845bf607dc513c97abf8e45ffe1086a99d98f83dfb7b37204af22431574186de9d5ff80c8c3c3a98dbe3983195bffd  gcc-${GCC_VERSION}.tar.xz" | sha512sum -c - && \
+    wget -q "https://ftpmirror.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz" && \
+    echo "cc24590bcead10b90763386b6f96bb027d7594c659c2d95174a6352e8b98465a50ec3e4088d0da038428abe059bbc4ae5f37b269f31a40fc048072c8a234f4e9  binutils-${BINUTILS_VERSION}.tar.xz" | sha512sum -c - && \
+    tar xf gcc-${GCC_VERSION}.tar.xz && \
+    tar xf binutils-${BINUTILS_VERSION}.tar.xz
 
 # Build native GCC 10 (for ARM64 cores)
 RUN mkdir build-gcc-native && cd build-gcc-native && \
