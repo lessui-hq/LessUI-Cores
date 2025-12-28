@@ -23,6 +23,9 @@ CPU_FAMILIES := arm32 arm64
 # Build parallelism (default to 8 jobs for optimal build speed)
 JOBS ?= 8
 
+# CI mode: Skip docker-build if image already exists (set SKIP_DOCKER_BUILD=1)
+SKIP_DOCKER_BUILD ?= 0
+
 # Default target: build and package everything
 all: build-all package-all
 	@echo ""
@@ -89,7 +92,10 @@ docker-build:
 
 # Generic build target for any CPU family
 .PHONY: build-%
-build-%: docker-build
+build-%:
+ifeq ($(SKIP_DOCKER_BUILD),0)
+	@$(MAKE) docker-build
+endif
 	@echo "=== Building cores for $* ==="
 	@if [ ! -f recipes/linux/$*.yml ]; then \
 		echo "ERROR: Recipe not found: recipes/linux/$*.yml"; \
@@ -121,7 +127,10 @@ build-all: $(addprefix build-,$(CPU_FAMILIES))
 # Build a single core (for testing/debugging)
 # Usage: make core-arm64-gambatte
 .PHONY: core-%
-core-%: docker-build
+core-%:
+ifeq ($(SKIP_DOCKER_BUILD),0)
+	@$(MAKE) docker-build
+endif
 	@# Parse pattern: core-<family>-<corename>
 	@# Handle family names (arm32, arm64)
 	@FAMILY=$$(echo "$*" | sed -E 's/^(arm[0-9]+)-(.+)$$/\1/'); \
@@ -196,7 +205,10 @@ clean:
 	@echo "✓ Cleaned"
 
 # Open interactive shell in build container
-shell: docker-build
+shell:
+ifeq ($(SKIP_DOCKER_BUILD),0)
+	@$(MAKE) docker-build
+endif
 	@echo "=== Opening shell in build container ==="
 	@echo "Debian Buster (GCC 8.3.0, glibc 2.28)"
 	@echo "Type 'exit' to return"
