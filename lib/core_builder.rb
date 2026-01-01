@@ -294,8 +294,9 @@ class CoreBuilder
     unless status.success?
       @logger.detail("  (strip failed, continuing with unstripped binary)")
     end
-  rescue StandardError
+  rescue StandardError => e
     # Strip command not found or failed - continue with unstripped binary
+    @logger.detail("  (strip raised #{e.class}: #{e.message}, continuing with unstripped binary)")
   end
 
   def run_command(env, *args)
