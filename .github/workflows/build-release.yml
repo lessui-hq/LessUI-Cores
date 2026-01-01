@@ -18,7 +18,7 @@ jobs:
     runs-on: sprinters:aws:ubuntu-24.04-arm:c7gd.xlarge:temp=32
     timeout-minutes: 30
     concurrency:
-      group: docker-build-${{ hashFiles('Dockerfile') }}
+      group: docker-build
       cancel-in-progress: false
 
     steps:
