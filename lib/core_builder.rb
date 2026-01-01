@@ -174,6 +174,9 @@ class CoreBuilder
     # Use CommandBuilder to generate CMake commands
     env = @cpu_config.to_env
 
+    # Apply extra compiler flags if specified (appends to existing flags)
+    env = apply_extra_flags(env, metadata)
+
     # Apply cmake_env overrides if specified (for builds with host tool compilation)
     # This allows setting CC/AR to native compilers while cmake uses cross-compiler
     if metadata['cmake_env']
@@ -227,6 +230,9 @@ class CoreBuilder
 
     # Run make
     env = @cpu_config.to_env
+
+    # Apply extra compiler flags if specified (appends to existing flags)
+    env = apply_extra_flags(env, metadata)
     Dir.chdir(work_dir) do
       run_command(env, *@command_builder.make_command(metadata, makefile))
     end
@@ -242,6 +248,26 @@ class CoreBuilder
     dest_path
   end
 
+  # Apply extra_cflags/extra_cxxflags from recipe metadata to environment
+  # These flags are appended to existing CFLAGS/CXXFLAGS
+  def apply_extra_flags(env, metadata)
+    env = env.dup
+
+    if metadata['extra_cflags']
+      env['CFLAGS'] = "#{env['CFLAGS']} #{metadata['extra_cflags']}".strip
+    end
+
+    if metadata['extra_cxxflags']
+      env['CXXFLAGS'] = "#{env['CXXFLAGS']} #{metadata['extra_cxxflags']}".strip
+    end
+
+    if metadata['extra_ldflags']
+      env['LDFLAGS'] = "#{env['LDFLAGS']} #{metadata['extra_ldflags']}".strip
+    end
+
+    env
+  end
+
   def copy_so_file(so_file, name, metadata)
     # Use output_name from recipe if specified, otherwise preserve original filename
     if metadata['output_name']
@@ -252,8 +278,24 @@ class CoreBuilder
 
     dest = File.join(@output_dir, dest_name)
     FileUtils.cp(so_file, dest)
+
+    # Strip debug symbols from the output binary
+    strip_binary(dest)
+
     @logger.detail("  ✓ #{dest_name}")
     dest
+  end
+
+  def strip_binary(file_path)
+    strip = @cpu_config.to_env['STRIP']
+    return unless strip && !strip.empty?
+
+    _, status = Open3.capture2e(strip, file_path)
+    unless status.success?
+      @logger.detail("  (strip failed, continuing with unstripped binary)")
+    end
+  rescue StandardError
+    # Strip command not found or failed - continue with unstripped binary
   end
 
   def run_command(env, *args)
