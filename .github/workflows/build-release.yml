@@ -10,14 +10,16 @@ concurrency:
   cancel-in-progress: false # Don't cancel releases mid-build
 
 permissions:
-  contents: write # Required for creating releases and pushing tags
+  contents: write
+  packages: write
 
 jobs:
   docker-build:
     runs-on: sprinters:aws:ubuntu-24.04-arm:c7gd.xlarge:temp=32
     timeout-minutes: 30
-    outputs:
-      cache-hit: ${{ steps.cache-docker.outputs.cache-hit }}
+    concurrency:
+      group: docker-build-${{ hashFiles('Dockerfile') }}
+      cancel-in-progress: false
 
     steps:
       - name: Checkout code
@@ -33,48 +35,40 @@ jobs:
           echo "hash=$HASH" >> $GITHUB_OUTPUT
           echo "Dockerfile hash: $HASH"
 
-      - name: Cache Docker image
-        id: cache-docker
-        uses: actions/cache@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          path: /tmp/docker-image.tar
-          key: docker-image-${{ runner.os }}-${{ runner.arch }}-${{ steps.dockerfile-hash.outputs.hash }}
-          restore-keys: |
-            docker-image-${{ runner.os }}-${{ runner.arch }}-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load cached Docker image
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        id: load-cache
+      - name: Check if image exists in GHCR
+        id: check-image
         run: |
-          echo "Loading cached Docker image..."
-          if docker load -i /tmp/docker-image.tar; then
-            echo "✓ Cached image loaded (skipped 28 min build!)"
-            echo "success=true" >> $GITHUB_OUTPUT
+          IMAGE="ghcr.io/${{ github.repository_owner }}/lessui-cores-builder:${{ steps.dockerfile-hash.outputs.hash }}"
+          if docker pull "$IMAGE" 2>/dev/null; then
+            echo "✓ Image found in GHCR (skipped 28 min build!)"
+            echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ Cache corrupted, will rebuild"
-            echo "success=false" >> $GITHUB_OUTPUT
+            echo "Image not found, will build"
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
-        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
+        if: steps.check-image.outputs.exists == 'false'
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image (with cache)
-        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
+      - name: Build and push Docker image
+        if: steps.check-image.outputs.exists == 'false'
         uses: docker/build-push-action@v6
         with:
           context: .
-          load: true
-          tags: lessui-cores-builder:latest
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/lessui-cores-builder:${{ steps.dockerfile-hash.outputs.hash }}
+            ghcr.io/${{ github.repository_owner }}/lessui-cores-builder:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Save Docker image to cache
-        if: steps.cache-docker.outputs.cache-hit != 'true'
-        run: |
-          echo "Saving Docker image to cache..."
-          docker save lessui-cores-builder:latest -o /tmp/docker-image.tar
-          echo "✓ Image saved to cache"
 
   build:
     needs: docker-build
@@ -92,46 +86,17 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Calculate Dockerfile hash
-        id: dockerfile-hash
-        run: |
-          HASH=$(sha256sum Dockerfile | awk '{print $1}')
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
-
-      - name: Restore cached Docker image
-        id: cache-docker
-        uses: actions/cache/restore@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          path: /tmp/docker-image.tar
-          key: docker-image-${{ runner.os }}-${{ runner.arch }}-${{ steps.dockerfile-hash.outputs.hash }}
-          restore-keys: |
-            docker-image-${{ runner.os }}-${{ runner.arch }}-
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load Docker image
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        id: load-cache
+      - name: Pull Docker image from GHCR
         run: |
-          echo "Loading cached Docker image..."
-          if docker load -i /tmp/docker-image.tar; then
-            echo "✓ Image loaded from cache (instant!)"
-            echo "success=true" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️ Cache corrupted, will rebuild"
-            echo "success=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up Docker Buildx
-        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image (fallback)
-        if: steps.cache-docker.outputs.cache-hit != 'true' || steps.load-cache.outputs.success == 'false'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: true
-          tags: lessui-cores-builder:latest
-          cache-from: type=gha
+          docker pull ghcr.io/${{ github.repository_owner }}/lessui-cores-builder:latest
+          docker tag ghcr.io/${{ github.repository_owner }}/lessui-cores-builder:latest lessui-cores-builder:latest
 
       - name: Clean previous builds
         run: make clean
