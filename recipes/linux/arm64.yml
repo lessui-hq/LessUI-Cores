@@ -213,7 +213,7 @@ cores:
     build_type: make
     makefile: Makefile.libretro
     build_dir: "."
-    platform: unix
+    platform: arm64
     so_file: pcsx_rearmed_libretro.so
     extra_cflags: "-Ofast -fipa-pta"
     extra_cxxflags: "-Ofast -fipa-pta"
