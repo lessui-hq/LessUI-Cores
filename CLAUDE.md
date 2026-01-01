@@ -107,7 +107,10 @@ atari800:
 **Optional fields:**
 - `target` - Branch name (e.g., `master`, `main`) or version tag (e.g., `v1.18.1`) to track for updates
 - `submodules: true` - Only include if needed
-- `extra_args: [...]` - Only for special cases
+- `extra_args: [...]` - Only for special cases (make builds only)
+- `extra_cflags` - Additional CFLAGS to append (e.g., `-Wno-error`)
+- `extra_cxxflags` - Additional CXXFLAGS to append (e.g., `-mno-outline-atomics` for ARM64 atomics compatibility)
+- `extra_ldflags` - Additional LDFLAGS to append
 - `cmake_env` - (cmake only) Override environment variables for the build process. Useful when a cmake project spawns host tool builds (e.g., mruby in tic80) that incorrectly inherit cross-compiler env vars. Example:
   ```yaml
   cmake_env:

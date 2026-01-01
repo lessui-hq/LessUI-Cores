@@ -124,16 +124,19 @@ cores:
 
   flycast:
     repo: flyinghead/flycast
-    target: v2.0
-    commit: aa97a6d64fb47d3ce0febaa575b26d975dd916e4
+    target: master
+    commit: c57b2e1aa775c21f6ddcd090607f4b3ba1a1baa1
     build_type: cmake
     so_file: build/flycast_libretro.so
     submodules: true
+    extra_cflags: "-Ofast"
+    extra_cxxflags: "-Ofast"
     cmake_opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DLIBRETRO=ON
-      - -DUSE_OPENMP=OFF
+      - -DUSE_OPENMP=ON
       - -DUSE_GLES=ON
+      - -DUSE_VULKAN=OFF
 
   gambatte:
     repo: libretro/gambatte-libretro
@@ -180,14 +183,18 @@ cores:
   mupen64plus-next:
     repo: libretro/mupen64plus-libretro-nx
     target: develop
-    commit: 680e033fc8ed1a49df7b156d97164e0050ee13bc
+    commit: 7c7f11061f29b2ccd5d0952e2373ae5b55cfea8f
     build_type: make
     makefile: Makefile
     build_dir: "."
     platform: unix
     so_file: mupen64plus_next_libretro.so
+    extra_cflags: "-Ofast -DHAVE_UNISTD_H -Wno-error=incompatible-pointer-types"
+    extra_cxxflags: "-Ofast -mno-outline-atomics"
     extra_args:
-      - FORCE_GLES=1
+      - GLES3=1
+      - 'GL_LIB=-lGLESv2'
+      - WITH_DYNAREC=aarch64
 
   neocd:
     repo: libretro/neocd_libretro
@@ -202,12 +209,15 @@ cores:
   pcsx:
     repo: libretro/pcsx_rearmed
     target: master
-    commit: 9059485691c44cb3a555464b06eddfb1082d586c
+    commit: 228c14e10e9a8fae0ead8adf30daad2cdd8655b9
     build_type: make
     makefile: Makefile.libretro
     build_dir: "."
-    platform: unix
+    platform: arm64
     so_file: pcsx_rearmed_libretro.so
+    extra_cflags: "-Ofast -fipa-pta"
+    extra_cxxflags: "-Ofast -fipa-pta"
+    extra_ldflags: "-fipa-pta"
 
   picodrive:
     repo: libretro/picodrive
@@ -232,8 +242,8 @@ cores:
 
   ppsspp:
     repo: hrydgard/ppsspp
-    target: v1.19.3
-    commit: a0cd10949c4c3738c47adce9f673700c13f08645
+    target: master
+    commit: 58e12acee4d7829ee675ce95f3d377c3aaa3ecc5
     build_type: cmake
     so_file: build/lib/ppsspp_libretro.so
     submodules: true
@@ -242,21 +252,22 @@ cores:
       - -DCMAKE_BUILD_TYPE=Release
       - -DBUILD_SHARED_LIBS=OFF
       - -DCMAKE_SYSTEM_NAME=Linux
+      - -DCMAKE_CROSSCOMPILING=ON
       - -DLIBRETRO=ON
-      - -DARM64=ON
+      - -DFORCED_CPU=aarch64
       - -DANDROID=OFF
       - -DWIN32=OFF
       - -DAPPLE=OFF
       - -DUSE_DISCORD=OFF
-      - -DUSING_FBDEV=OFF
+      - -DUSING_FBDEV=ON
       - -DUSING_GLES2=ON
+      - -DUSING_QT_UI=OFF
       - -DUNITTEST=OFF
       - -DSIMULATOR=OFF
-      - -DENABLE_CTEST=OFF
+      - -DHEADLESS=OFF
       - -DVULKAN=OFF
       - -DUSE_WAYLAND_WSI=OFF
       - -DUSING_X11_VULKAN=OFF
-      - -DCMAKE_DISABLE_FIND_PACKAGE_X11=TRUE
       - -DUSE_FFMPEG=ON
       - -DUSE_SYSTEM_FFMPEG=OFF
 
@@ -291,6 +302,16 @@ cores:
     so_file: snes9x2005_plus_libretro.so
     extra_args:
       - USE_BLARGG_APU=1
+
+  swanstation:
+    repo: libretro/swanstation
+    target: main
+    commit: 4d309c05fd7bdc503d91d267bd542edb8d192b09
+    build_type: cmake
+    so_file: build/swanstation_libretro.so
+    cmake_opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_LIBRETRO_CORE=ON
 
   stella:
     repo: libretro/stella2014-libretro
