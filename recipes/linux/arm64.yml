@@ -209,7 +209,7 @@ cores:
   pcsx:
     repo: libretro/pcsx_rearmed
     target: master
-    commit: 9059485691c44cb3a555464b06eddfb1082d586c
+    commit: 228c14e10e9a8fae0ead8adf30daad2cdd8655b9
     build_type: make
     makefile: Makefile.libretro
     build_dir: "."
