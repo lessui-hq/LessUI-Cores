@@ -129,6 +129,8 @@ cores:
     build_type: cmake
     so_file: build/flycast_libretro.so
     submodules: true
+    extra_cflags: "-Ofast"
+    extra_cxxflags: "-Ofast"
     cmake_opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DLIBRETRO=ON
@@ -187,8 +189,8 @@ cores:
     build_dir: "."
     platform: unix
     so_file: mupen64plus_next_libretro.so
-    extra_cflags: "-DHAVE_UNISTD_H -Wno-error=incompatible-pointer-types"
-    extra_cxxflags: "-mno-outline-atomics"
+    extra_cflags: "-Ofast -DHAVE_UNISTD_H -Wno-error=incompatible-pointer-types"
+    extra_cxxflags: "-Ofast -mno-outline-atomics"
     extra_args:
       - GLES3=1
       - 'GL_LIB=-lGLESv2'
@@ -213,6 +215,9 @@ cores:
     build_dir: "."
     platform: unix
     so_file: pcsx_rearmed_libretro.so
+    extra_cflags: "-Ofast -fipa-pta"
+    extra_cxxflags: "-Ofast -fipa-pta"
+    extra_ldflags: "-fipa-pta"
 
   picodrive:
     repo: libretro/picodrive
