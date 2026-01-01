@@ -23,6 +23,8 @@ RSpec.describe CoreBuilder do
         'ARCH' => 'aarch64',
         'CC' => 'aarch64-linux-gnu-gcc',
         'CXX' => 'aarch64-linux-gnu-g++',
+        'AR' => 'aarch64-linux-gnu-ar',
+        'STRIP' => 'aarch64-linux-gnu-strip',
         'CFLAGS' => '-O2 -pipe',
         'CXXFLAGS' => '-O2 -pipe',
         'LDFLAGS' => '-Wl,-O1',
@@ -843,6 +845,85 @@ RSpec.describe CoreBuilder do
       expect(captured_env['CC']).to eq('gcc')
       expect(captured_env['CXX']).to eq('g++')
       expect(captured_env['CFLAGS']).to eq('')
+    end
+  end
+
+  describe 'extra_cflags/extra_cxxflags' do
+    let(:make_core_dir) { File.join(cores_dir, 'libretro-extra-flags-test') }
+
+    before do
+      FileUtils.mkdir_p(make_core_dir)
+      File.write(File.join(make_core_dir, 'Makefile'), 'all:')
+    end
+
+    let(:metadata) do
+      {
+        'repo' => 'libretro/extra-flags-test',
+        'build_type' => 'make',
+        'makefile' => 'Makefile',
+        'build_dir' => '.',
+        'platform' => 'unix',
+        'so_file' => 'extra_flags_test_libretro.so',
+        'extra_cflags' => '-DHAVE_UNISTD_H -Wno-error',
+        'extra_cxxflags' => '-mno-outline-atomics',
+        'extra_ldflags' => '-lextra'
+      }
+    end
+
+    it 'appends extra flags to environment' do
+      captured_env = nil
+
+      allow(builder).to receive(:run_command) do |env, *args|
+        captured_env = env if args.first == 'make'
+      end
+
+      allow(File).to receive(:exist?).and_call_original
+      allow(File).to receive(:exist?).with(File.join(make_core_dir, 'extra_flags_test_libretro.so')).and_return(true)
+      allow(FileUtils).to receive(:cp)
+
+      builder.build_one('extra-flags-test', metadata)
+
+      expect(captured_env['CFLAGS']).to include('-DHAVE_UNISTD_H')
+      expect(captured_env['CFLAGS']).to include('-Wno-error')
+      expect(captured_env['CXXFLAGS']).to include('-mno-outline-atomics')
+      expect(captured_env['LDFLAGS']).to include('-lextra')
+    end
+
+    context 'with cmake build' do
+      let(:cmake_core_dir) { File.join(cores_dir, 'libretro-cmake-extra-flags-test') }
+
+      before do
+        FileUtils.mkdir_p(cmake_core_dir)
+        File.write(File.join(cmake_core_dir, 'CMakeLists.txt'), 'project(test)')
+      end
+
+      let(:cmake_metadata) do
+        {
+          'repo' => 'libretro/cmake-extra-flags-test',
+          'build_type' => 'cmake',
+          'cmake_opts' => ['-DCMAKE_BUILD_TYPE=Release'],
+          'so_file' => 'cmake_extra_flags_test_libretro.so',
+          'extra_cflags' => '-Wno-error',
+          'extra_cxxflags' => '-mno-outline-atomics'
+        }
+      end
+
+      it 'appends extra flags to environment for cmake builds' do
+        captured_env = nil
+
+        allow(builder).to receive(:run_command) do |env, *args|
+          captured_env = env if args.first == 'cmake'
+        end
+
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:exist?).with(File.join(cmake_core_dir, 'build', 'cmake_extra_flags_test_libretro.so')).and_return(true)
+        allow(FileUtils).to receive(:cp)
+
+        builder.build_one('cmake-extra-flags-test', cmake_metadata)
+
+        expect(captured_env['CFLAGS']).to include('-Wno-error')
+        expect(captured_env['CXXFLAGS']).to include('-mno-outline-atomics')
+      end
     end
   end
 
