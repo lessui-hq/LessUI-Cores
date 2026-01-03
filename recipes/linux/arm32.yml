@@ -99,6 +99,9 @@ cores:
     so_file: platform/libretro/fake08_libretro_miyoomini.so
     output_name: fake08_libretro.so
     submodules: true
+    strip: true
+    extra_args:
+      - 'SHARED=-shared -static-libgcc -static-libstdc++ -Wl,--version-script=link.T'
 
   fbneo:
     repo: libretro/FBNeo
@@ -109,6 +112,7 @@ cores:
     build_dir: src/burner/libretro
     platform: classic_armv7_a7
     so_file: src/burner/libretro/fbneo_libretro.so
+    strip: true
     extra_args:
       - LDFLAGS+=-lpthread
 
@@ -165,6 +169,7 @@ cores:
     build_dir: "."
     platform: classic_armv7_a7
     so_file: mame2003_plus_libretro.so
+    strip: true
 
   neocd:
     repo: libretro/neocd_libretro

@@ -279,8 +279,20 @@ class CoreBuilder
     dest = File.join(@output_dir, dest_name)
     FileUtils.cp(so_file, dest)
 
+    # Strip debug symbols if requested (opt-in to avoid breaking dynarec cores)
+    strip_binary(dest) if metadata['strip']
+
     @logger.detail("  ✓ #{dest_name}")
     dest
+  end
+
+  def strip_binary(path)
+    strip_cmd = "#{@cpu_config.target_cross}strip"
+    _, status = Open3.capture2e(strip_cmd, path)
+    unless status.success?
+      # Fall back to plain strip if cross-strip fails
+      Open3.capture2e('strip', path)
+    end
   end
 
   def run_command(env, *args)

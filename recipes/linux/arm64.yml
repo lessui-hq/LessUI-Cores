@@ -98,6 +98,9 @@ cores:
     platform: unix
     so_file: platform/libretro/fake08_libretro.so
     submodules: true
+    strip: true
+    extra_args:
+      - 'SHARED=-shared -static-libgcc -static-libstdc++ -Wl,--version-script=link.T -Wl,--no-undefined'
 
   fbneo:
     repo: libretro/FBNeo
@@ -108,6 +111,7 @@ cores:
     build_dir: src/burner/libretro
     platform: unix
     so_file: src/burner/libretro/fbneo_libretro.so
+    strip: true
 
   fceumm:
     repo: libretro/libretro-fceumm
@@ -179,6 +183,7 @@ cores:
     build_dir: "."
     platform: unix
     so_file: mame2003_plus_libretro.so
+    strip: true
 
   mupen64plus-next:
     repo: libretro/mupen64plus-libretro-nx
